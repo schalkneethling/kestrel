@@ -17,6 +17,7 @@ packages/**/dist/
 .tsbuild/
 *.tsbuildinfo
 .tokensave/
+.wrangler/
 *.local
 
 # Editor directories and files

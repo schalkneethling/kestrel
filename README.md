@@ -42,6 +42,14 @@ pnpm run lint
 pnpm run format:check
 ```
 
+Local Worker and D1 setup:
+
+```sh
+pnpm db:migrate:local
+pnpm worker:dev
+curl http://127.0.0.1:8787/api/health
+```
+
 ## Prototype Stack
 
 - Cloudflare Workers and Cron Triggers.
