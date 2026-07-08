@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "composite": true,
+    "allowImportingTsExtensions": false,
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "noEmit": false,
+    "outDir": "dist-types",
+    "rootDir": "src",
+    "types": ["vite/client"]
+  },
+  "include": ["src"],
+  "references": [{ "path": "../../packages/core" }]
+}

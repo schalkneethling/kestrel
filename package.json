@@ -1,0 +1,48 @@
+{
+  "name": "kestrel",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Single-user job posting tracker for ATS polling, repost detection, criteria matching, and desktop notifications.",
+  "license": "MIT",
+  "author": "Schalk Neethling",
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm --filter @kestrel/dashboard dev",
+    "build": "pnpm --recursive --if-present run build",
+    "preview": "pnpm --filter @kestrel/dashboard preview",
+    "prepare": "vp config",
+    "lint": "oxlint . && stylelint \"**/*.{css,scss}\"",
+    "lint:fix": "oxlint --fix . && stylelint \"**/*.{css,scss}\" --fix",
+    "format": "oxfmt --write .",
+    "format:check": "oxfmt --check .",
+    "quality": "pnpm lint && pnpm format:check && pnpm react:doctor",
+    "test": "pnpm --recursive --if-present run test",
+    "test:watch": "pnpm --recursive --if-present run test:watch",
+    "react:doctor": "react-doctor --offline",
+    "react:doctor:diff": "react-doctor --offline --diff"
+  },
+  "devDependencies": {
+    "oxfmt": "^0.58.0",
+    "oxlint": "^1.73.0",
+    "react-doctor": "^0.7.2",
+    "stylelint": "^17.14.0",
+    "stylelint-config-standard": "^40.0.0",
+    "stylelint-plugin-use-baseline": "^1.4.4",
+    "typescript": "~6.0.2",
+    "vite": "npm:@voidzero-dev/vite-plus-core@0.2.4",
+    "vite-plus": "0.2.4",
+    "vitest": "4.1.10"
+  },
+  "overrides": {
+    "vite": "npm:@voidzero-dev/vite-plus-core@0.2.4",
+    "vitest": "4.1.10"
+  },
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "10.33.2",
+      "onFail": "download"
+    }
+  },
+  "packageManager": "pnpm@10.33.2"
+}
