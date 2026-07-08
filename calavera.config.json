@@ -14,7 +14,9 @@
     "stylelint",
     "stylelint-standard",
     "stylelint-baseline",
-    "react-doctor"
+    "react-doctor",
+    "oxlint-react",
+    "oxlint-jsx-a11y"
   ],
   "scripts": {
     "lint": true,

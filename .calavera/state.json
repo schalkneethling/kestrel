@@ -8,7 +8,9 @@
     "oxlint-typescript",
     "oxlint-unicorn",
     "oxlint-oxc",
+    "oxlint-react",
     "react-doctor",
+    "oxlint-jsx-a11y",
     "oxfmt",
     "stylelint",
     "stylelint-standard",
@@ -22,7 +24,7 @@
     },
     {
       "path": "oxlint.json",
-      "hash": "ca64e07"
+      "hash": "67c3775"
     },
     {
       "path": ".stylelintrc.json",
