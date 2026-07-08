@@ -11,6 +11,10 @@ node_modules
 dist
 dist-types
 dist-ssr
+apps/**/dist/
+apps/**/dist-types/
+packages/**/dist/
+.tsbuild/
 *.tsbuildinfo
 .tokensave/
 *.local

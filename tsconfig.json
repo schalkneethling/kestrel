@@ -21,6 +21,7 @@
   },
   "files": [],
   "references": [
+    { "path": "tsconfig.config.json" },
     { "path": "packages/core" },
     { "path": "apps/worker" },
     { "path": "apps/dashboard" }

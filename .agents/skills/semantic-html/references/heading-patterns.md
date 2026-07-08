@@ -16,9 +16,15 @@ Component-based development creates a tension:
 Make heading level a prop/parameter with a sensible default.
 
 ```jsx
+function normalizeHeadingLevel(level, fallback = 3) {
+  const requestedLevel = Number(level);
+  const wholeLevel = Number.isFinite(requestedLevel) ? Math.trunc(requestedLevel) : fallback;
+  return Math.min(6, Math.max(1, wholeLevel));
+}
+
 // React example
 function Card({ title, headingLevel = 3, children }) {
-  const safeHeadingLevel = Math.min(6, Math.max(1, Number(headingLevel) || 3));
+  const safeHeadingLevel = normalizeHeadingLevel(headingLevel);
   const Heading = `h${safeHeadingLevel}`;
   return (
     <article className="card">
@@ -99,8 +105,8 @@ Create a heading component that handles both semantic and visual concerns.
 
 ```jsx
 function Heading({ level, visualLevel = level, children, className = "" }) {
-  const semanticLevel = Math.min(6, Math.max(1, Number(level) || 2));
-  const visualHeadingLevel = Math.min(6, Math.max(1, Number(visualLevel) || semanticLevel));
+  const semanticLevel = normalizeHeadingLevel(level, 2);
+  const visualHeadingLevel = normalizeHeadingLevel(visualLevel, semanticLevel);
   const Tag = `h${semanticLevel}`;
   const visualClass = `u-heading-${visualHeadingLevel}`;
 
@@ -132,7 +138,7 @@ Generic components inherit heading config when specialised.
 ```jsx
 // Generic card
 function Card({ title, headingLevel = 3, headingClass, children }) {
-  const safeHeadingLevel = Math.min(6, Math.max(1, Number(headingLevel) || 3));
+  const safeHeadingLevel = normalizeHeadingLevel(headingLevel);
   const Heading = `h${safeHeadingLevel}`;
   return (
     <article className="card">
@@ -272,7 +278,8 @@ function Card({ title, headingLevel }) {
 
 // Safe: always has a valid level
 function Card({ title, headingLevel = 3 }) {
-  const Heading = `h${headingLevel}`;
+  const safeHeadingLevel = normalizeHeadingLevel(headingLevel);
+  const Heading = `h${safeHeadingLevel}`;
   return <Heading>{title}</Heading>;
 }
 ```
