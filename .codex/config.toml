@@ -1,0 +1,3 @@
+[mcp_servers.calavera]
+command = "npx"
+args = ["--package", "create-project-calavera@2.2.0", "create-project-calavera-mcp"]

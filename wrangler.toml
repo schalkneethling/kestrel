@@ -1,0 +1,10 @@
+name = "kestrel"
+main = "apps/worker/src/index.ts"
+compatibility_date = "2026-07-08"
+
+[assets]
+directory = "apps/dashboard/dist"
+binding = "ASSETS"
+
+[triggers]
+crons = ["0 */3 * * *"]

@@ -1,0 +1,68 @@
+{
+  "version": 1,
+  "profile": "modern",
+  "integrations": [
+    "editorconfig",
+    "oxlint",
+    "oxlint-eslint",
+    "oxlint-typescript",
+    "oxlint-unicorn",
+    "oxlint-oxc",
+    "oxfmt",
+    "stylelint",
+    "stylelint-standard",
+    "stylelint-baseline"
+  ],
+  "files": [".editorconfig", "oxlint.json", ".stylelintrc.json"],
+  "managedFiles": [
+    {
+      "path": ".editorconfig",
+      "hash": "3a15156"
+    },
+    {
+      "path": "oxlint.json",
+      "hash": "ca64e07"
+    },
+    {
+      "path": ".stylelintrc.json",
+      "hash": "373d349"
+    }
+  ],
+  "aiArtifacts": [
+    {
+      "type": "skill",
+      "name": "css-coder",
+      "source": "skills/css-coder",
+      "path": ".agents/skills/css-coder",
+      "hash": "913d7a4"
+    },
+    {
+      "type": "skill",
+      "name": "frontend-security",
+      "source": "skills/frontend-security",
+      "path": ".agents/skills/frontend-security",
+      "hash": "89dc4c2"
+    },
+    {
+      "type": "skill",
+      "name": "frontend-testing",
+      "source": "skills/frontend-testing",
+      "path": ".agents/skills/frontend-testing",
+      "hash": "03407df"
+    },
+    {
+      "type": "skill",
+      "name": "more-secure-dependabot-config",
+      "source": "skills/more-secure-dependabot-config",
+      "path": ".agents/skills/more-secure-dependabot-config",
+      "hash": "442567e"
+    },
+    {
+      "type": "skill",
+      "name": "semantic-html",
+      "source": "skills/semantic-html",
+      "path": ".agents/skills/semantic-html",
+      "hash": "07c1784"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "name": "@kestrel/dashboard",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vp dev",
+    "build": "tsc -p tsconfig.json && vp build",
+    "preview": "vp preview"
+  },
+  "dependencies": {
+    "@kestrel/core": "workspace:*"
+  },
+  "devDependencies": {
+    "vite": "npm:@voidzero-dev/vite-plus-core@0.2.4"
+  }
+}
