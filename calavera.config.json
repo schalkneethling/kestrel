@@ -13,7 +13,8 @@
     "oxfmt",
     "stylelint",
     "stylelint-standard",
-    "stylelint-baseline"
+    "stylelint-baseline",
+    "react-doctor"
   ],
   "scripts": {
     "lint": true,

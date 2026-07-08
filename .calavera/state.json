@@ -8,12 +8,13 @@
     "oxlint-typescript",
     "oxlint-unicorn",
     "oxlint-oxc",
+    "react-doctor",
     "oxfmt",
     "stylelint",
     "stylelint-standard",
     "stylelint-baseline"
   ],
-  "files": [".editorconfig", "oxlint.json", ".stylelintrc.json"],
+  "files": [".editorconfig", "oxlint.json", ".stylelintrc.json", "react-doctor.config.json"],
   "managedFiles": [
     {
       "path": ".editorconfig",
@@ -26,6 +27,10 @@
     {
       "path": ".stylelintrc.json",
       "hash": "373d349"
+    },
+    {
+      "path": "react-doctor.config.json",
+      "hash": "433dce1"
     }
   ],
   "aiArtifacts": [
