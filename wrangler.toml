@@ -1,6 +1,7 @@
 name = "kestrel"
 main = "apps/worker/src/index.ts"
 compatibility_date = "2026-07-08"
+compatibility_flags = ["nodejs_compat"]
 
 [assets]
 directory = "apps/dashboard/dist"
