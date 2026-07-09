@@ -58,6 +58,16 @@ Sensitive local values belong in git-ignored `.env.local` files as Varlock encry
 
 Production secrets remain in Cloudflare and are deployed through Varlock's Cloudflare integration. Use `varlock-wrangler deploy` instead of plain `wrangler deploy` once deployment is wired.
 
+## Local Worker And D1
+
+Local Worker and D1 setup:
+
+```sh
+pnpm db:migrate:local
+pnpm worker:dev
+curl http://127.0.0.1:8787/api/health
+```
+
 ## Prototype Stack
 
 - Cloudflare Workers and Cron Triggers.

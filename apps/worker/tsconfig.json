@@ -7,7 +7,7 @@
     "noEmit": false,
     "outDir": "dist",
     "rootDir": "src",
-    "types": []
+    "types": ["@cloudflare/workers-types"]
   },
   "include": ["src"],
   "references": [{ "path": "../../packages/core" }]
