@@ -8,6 +8,8 @@
   "type": "module",
   "scripts": {
     "dev": "pnpm --filter @kestrel/dashboard dev",
+    "worker:dev": "pnpm --filter @kestrel/worker dev",
+    "db:migrate:local": "pnpm --filter @kestrel/worker db:migrate:local",
     "build": "pnpm --recursive --if-present run build",
     "preview": "pnpm --filter @kestrel/dashboard preview",
     "prepare": "vp config",
@@ -22,6 +24,7 @@
     "react:doctor:diff": "react-doctor --offline --diff"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260702.1",
     "oxfmt": "^0.58.0",
     "oxlint": "^1.73.0",
     "react-doctor": "^0.7.2",
@@ -31,7 +34,8 @@
     "typescript": "~6.0.2",
     "vite": "npm:@voidzero-dev/vite-plus-core@0.2.4",
     "vite-plus": "0.2.4",
-    "vitest": "4.1.10"
+    "vitest": "4.1.10",
+    "wrangler": "^4.107.1"
   },
   "overrides": {
     "vite": "npm:@voidzero-dev/vite-plus-core@0.2.4",

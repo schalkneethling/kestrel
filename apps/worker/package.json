@@ -4,7 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc -p tsconfig.json"
+    "build": "tsc -p tsconfig.json",
+    "dev": "wrangler dev",
+    "db:migrate:local": "wrangler d1 migrations apply kestrel --local"
   },
   "dependencies": {
     "@kestrel/core": "workspace:*"
