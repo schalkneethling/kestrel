@@ -11,6 +11,9 @@ importers:
       '@cloudflare/workers-types':
         specifier: ^4.20260702.1
         version: 4.20260702.1
+      '@varlock/cloudflare-integration':
+        specifier: ^1.2.1
+        version: 1.2.1(@voidzero-dev/vite-plus-core@0.2.4(esbuild@0.28.1)(jiti@2.7.0)(typescript@6.0.3)(yaml@2.9.0))(varlock@1.10.0)(wrangler@4.107.1(@cloudflare/workers-types@4.20260702.1))
       oxfmt:
         specifier: ^0.58.0
         version: 0.58.0(vite-plus@0.2.4(@opentelemetry/api@1.9.1)(@voidzero-dev/vite-plus-core@0.2.4(esbuild@0.28.1)(jiti@2.7.0)(typescript@6.0.3)(yaml@2.9.0))(esbuild@0.28.1)(jiti@2.7.0)(typescript@6.0.3)(yaml@2.9.0))
@@ -32,6 +35,9 @@ importers:
       typescript:
         specifier: ~6.0.2
         version: 6.0.3
+      varlock:
+        specifier: ^1.10.0
+        version: 1.10.0
       vite:
         specifier: npm:@voidzero-dev/vite-plus-core@0.2.4
         version: '@voidzero-dev/vite-plus-core@0.2.4(esbuild@0.28.1)(jiti@2.7.0)(typescript@6.0.3)(yaml@2.9.0)'
@@ -60,6 +66,12 @@ importers:
       '@kestrel/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@varlock/cloudflare-integration':
+        specifier: ^1.2.1
+        version: 1.2.1(@voidzero-dev/vite-plus-core@0.2.4(esbuild@0.28.1)(jiti@2.7.0)(typescript@6.0.3)(yaml@2.9.0))(varlock@1.10.0)(wrangler@4.107.1(@cloudflare/workers-types@4.20260702.1))
+      varlock:
+        specifier: ^1.10.0
+        version: 1.10.0
 
   packages/core: {}
 
@@ -1838,6 +1850,23 @@ packages:
     resolution: {integrity: sha512-xyLtl9DUBBFrcJS4x2pIqGLH68/tC2uOa4Z7pUteW09D3bXnnXUom4dyPikzWgB7llmIc1zoeI3aoUdC4rPK/Q==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
+  '@varlock/cloudflare-integration@1.2.1':
+    resolution: {integrity: sha512-Cqn3otYikBSm4/TAa2XZphGdqtTvQkC42Vpw7B0DsO0Luv6oZWw5BvfIvZJz3QCIoHN5/yJ0QHrSUnoEBPE22A==}
+    engines: {node: '>=22'}
+    hasBin: true
+    peerDependencies:
+      '@cloudflare/vite-plugin': '>=1'
+      varlock: ^1.10.0
+      vite: '>=5'
+      wrangler: '>=3'
+    peerDependenciesMeta:
+      '@cloudflare/vite-plugin':
+        optional: true
+      vite:
+        optional: true
+      wrangler:
+        optional: true
+
   '@vitest/browser-preview@4.1.10':
     resolution: {integrity: sha512-14MJrL59ZFkqXLjwfSk6RzTDy5Czf9UG4+8q8L6Gxjs2aPjEce/cVNYV14bXAc2BvMjUNu904+ZEZA1Xc1wtvQ==}
     peerDependencies:
@@ -3065,6 +3094,11 @@ packages:
 
   util-deprecate@1.0.2:
     resolution: {integrity: sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==}
+
+  varlock@1.10.0:
+    resolution: {integrity: sha512-o4YahQPmNFGjnYDkBYNWffMQBoQqrlzkBS473k4rFsbYfHH3J627/+62gfPYMTqhsg9HF4qC8ogtOR1vJSZUPA==}
+    engines: {bun: '>=1.3.3', node: '>=22.3.0'}
+    hasBin: true
 
   vite-plus@0.2.4:
     resolution: {integrity: sha512-gaBBjOXIq9lLRU44oAYdIr99p+JBLX1kxs+l/6LqGgSXwcVKAdDa1boSrOTELqYCkQQ0fpppXUGWi9o6JDT5zw==}
@@ -4387,6 +4421,13 @@ snapshots:
 
   '@typescript-eslint/types@8.63.0': {}
 
+  '@varlock/cloudflare-integration@1.2.1(@voidzero-dev/vite-plus-core@0.2.4(esbuild@0.28.1)(jiti@2.7.0)(typescript@6.0.3)(yaml@2.9.0))(varlock@1.10.0)(wrangler@4.107.1(@cloudflare/workers-types@4.20260702.1))':
+    dependencies:
+      varlock: 1.10.0
+    optionalDependencies:
+      vite: '@voidzero-dev/vite-plus-core@0.2.4(esbuild@0.28.1)(jiti@2.7.0)(typescript@6.0.3)(yaml@2.9.0)'
+      wrangler: 4.107.1(@cloudflare/workers-types@4.20260702.1)
+
   '@vitest/browser-preview@4.1.10(@voidzero-dev/vite-plus-core@0.2.4(esbuild@0.28.1)(jiti@2.7.0)(typescript@6.0.3)(yaml@2.9.0))(vitest@4.1.10)':
     dependencies:
       '@testing-library/dom': 10.4.1
@@ -5685,6 +5726,8 @@ snapshots:
       punycode: 2.3.1
 
   util-deprecate@1.0.2: {}
+
+  varlock@1.10.0: {}
 
   vite-plus@0.2.4(@opentelemetry/api@1.9.1)(@voidzero-dev/vite-plus-core@0.2.4(esbuild@0.28.1)(jiti@2.7.0)(typescript@6.0.3)(yaml@2.9.0))(esbuild@0.28.1)(jiti@2.7.0)(typescript@6.0.3)(yaml@2.9.0):
     dependencies:

@@ -1,3 +1,4 @@
+import "@varlock/cloudflare-integration/init";
 import { SUPPORTED_ATS_TYPES } from "@kestrel/core";
 
 interface Env {

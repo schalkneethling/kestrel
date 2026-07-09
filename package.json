@@ -21,10 +21,15 @@
     "test": "pnpm --recursive --if-present run test",
     "test:watch": "pnpm --recursive --if-present run test:watch",
     "react:doctor": "react-doctor --offline",
-    "react:doctor:diff": "react-doctor --offline --diff"
+    "react:doctor:diff": "react-doctor --offline --diff",
+    "env:validate": "varlock load --agent",
+    "env:validate:production": "APP_ENV=production varlock load --agent",
+    "secrets:scan": "varlock scan",
+    "secrets:scan:staged": "varlock scan --staged"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260702.1",
+    "@varlock/cloudflare-integration": "^1.2.1",
     "oxfmt": "^0.58.0",
     "oxlint": "^1.73.0",
     "react-doctor": "^0.7.2",
@@ -32,6 +37,7 @@
     "stylelint-config-standard": "^40.0.0",
     "stylelint-plugin-use-baseline": "^1.4.4",
     "typescript": "~6.0.2",
+    "varlock": "^1.10.0",
     "vite": "npm:@voidzero-dev/vite-plus-core@0.2.4",
     "vite-plus": "0.2.4",
     "vitest": "4.1.10",

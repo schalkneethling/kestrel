@@ -42,6 +42,24 @@ pnpm run lint
 pnpm run format:check
 ```
 
+## Configuration And Secrets
+
+Configuration is described in `.env.schema` and loaded with Varlock. The schema is safe for agents to read because it documents names, types, sensitivity, and requirements without storing secret values.
+
+Useful commands:
+
+```sh
+pnpm run env:validate
+pnpm run env:validate:production
+pnpm run secrets:scan
+```
+
+Sensitive local values belong in git-ignored `.env.local` files as Varlock encrypted values. Use `varlock encrypt --file .env.local` to encrypt plaintext sensitive entries in place, or set a value to `varlock(prompt)` and run `pnpm run env:validate` to let Varlock prompt and rewrite it securely.
+
+Production secrets remain in Cloudflare and are deployed through Varlock's Cloudflare integration. Use `varlock-wrangler deploy` instead of plain `wrangler deploy` once deployment is wired.
+
+## Local Worker And D1
+
 Local Worker and D1 setup:
 
 ```sh
