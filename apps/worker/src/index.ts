@@ -52,7 +52,7 @@ export default {
       const database = await checkDatabase(env.DB);
 
       return json({
-        ok: true,
+        ok: database.ok,
         database,
         supportedAtsTypes: SUPPORTED_ATS_TYPES,
       });
