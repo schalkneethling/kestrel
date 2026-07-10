@@ -18,14 +18,17 @@
     "format": "oxfmt --write .",
     "format:check": "oxfmt --check .",
     "quality": "pnpm lint && pnpm format:check && pnpm react:doctor",
-    "test": "pnpm --recursive --if-present run test",
+    "test": "node --test scripts/vapid-tests.mjs && pnpm --recursive --if-present run test",
+    "test:vapid": "node --test scripts/vapid-tests.mjs",
     "test:watch": "pnpm --recursive --if-present run test:watch",
     "react:doctor": "react-doctor --offline",
     "react:doctor:diff": "react-doctor --offline --diff",
     "env:validate": "varlock load --agent",
     "env:validate:production": "APP_ENV=production varlock load --agent",
     "secrets:scan": "varlock scan",
-    "secrets:scan:staged": "varlock scan --staged"
+    "secrets:scan:staged": "varlock scan --staged",
+    "vapid:generate": "node scripts/vapid.mjs generate",
+    "vapid:provision": "varlock run -- node scripts/vapid.mjs provision"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260702.1",

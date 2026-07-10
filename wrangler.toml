@@ -3,6 +3,9 @@ main = "apps/worker/src/index.ts"
 compatibility_date = "2026-07-08"
 compatibility_flags = ["nodejs_compat"]
 
+[secrets]
+required = ["VAPID_PRIVATE_KEY"]
+
 [[d1_databases]]
 binding = "DB"
 database_name = "kestrel"
