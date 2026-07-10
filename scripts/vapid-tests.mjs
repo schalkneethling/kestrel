@@ -199,7 +199,8 @@ void test("encryptVapidPrivateKey passes plaintext only on Varlock stdin", async
       calls.push({ command, args, options });
       return {
         exitCode: 0,
-        stdout: 'varlock("local:test-encrypted-reference")\n',
+        stdout:
+          'Using secure-enclave backend\n\nSOME_SENSITIVE_KEY=varlock("local:test-encrypted-reference")\n',
       };
     },
   });

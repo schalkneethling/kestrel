@@ -10,6 +10,7 @@ export const VAPID_PRIVATE_KEY_NAME = "VAPID_PRIVATE_KEY";
 const PUBLIC_KEY_PATTERN = /^B[A-Za-z0-9_-]{86}$/;
 const PRIVATE_KEY_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 const VARLOCK_LOCAL_REFERENCE_PATTERN = /^varlock\("local:[^"\r\n]+"\)$/;
+const VARLOCK_LOCAL_REFERENCE_EXTRACT_PATTERN = /varlock\("local:[^"\r\n]+"\)/g;
 const WRANGLER_ENV_ALLOWLIST = [
   "CI",
   "CLOUDFLARE_ACCOUNT_ID",
@@ -261,12 +262,12 @@ export async function encryptVapidPrivateKey(
     throw new Error(`Varlock encryption exited with code ${result.exitCode}`);
   }
 
-  const reference = result.stdout?.trim();
-  if (!reference || !VARLOCK_LOCAL_REFERENCE_PATTERN.test(reference)) {
+  const references = result.stdout?.match(VARLOCK_LOCAL_REFERENCE_EXTRACT_PATTERN) ?? [];
+  if (references.length !== 1 || !VARLOCK_LOCAL_REFERENCE_PATTERN.test(references[0])) {
     throw new Error("Varlock did not return a valid local encrypted reference");
   }
 
-  return reference;
+  return references[0];
 }
 
 export async function generateAndPersistVapidKeys({
