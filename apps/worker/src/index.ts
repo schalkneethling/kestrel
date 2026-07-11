@@ -11,9 +11,6 @@ interface HealthCheckRow {
   checked_at: string;
 }
 
-const HEALTH_CHECK_TABLE_SQL =
-  "CREATE TABLE IF NOT EXISTS worker_health_checks (id TEXT PRIMARY KEY, checked_at TEXT NOT NULL)";
-
 function json(data: unknown, init?: ResponseInit): Response {
   const headers = new Headers(init?.headers);
   headers.set("content-type", "application/json; charset=utf-8");
@@ -28,7 +25,6 @@ async function checkDatabase(db: D1Database): Promise<{ ok: boolean; checkedAt: 
   const id = crypto.randomUUID();
   const checkedAt = new Date().toISOString();
 
-  await db.exec(HEALTH_CHECK_TABLE_SQL);
   await db
     .prepare("INSERT INTO worker_health_checks (id, checked_at) VALUES (?, ?)")
     .bind(id, checkedAt)
