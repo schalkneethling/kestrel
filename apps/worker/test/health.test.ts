@@ -18,7 +18,9 @@ interface HealthResponse {
 
 describe("Worker health endpoint", () => {
   it("reports a successful D1 write and read", async () => {
-    const response = await SELF.fetch("https://kestrel.test/api/health");
+    const response = await SELF.fetch("https://kestrel.test/api/health", {
+      headers: { authorization: "Bearer test-bearer-secret" },
+    });
     const body = (await response.json()) as HealthResponse;
 
     expect(response.status).toBe(200);

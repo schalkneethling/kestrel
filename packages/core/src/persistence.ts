@@ -82,19 +82,24 @@ export type PollRun = {
 /** Provider-neutral storage contract. Persistence adapters translate these values to database rows. */
 export interface PersistencePort {
   listCompanies(): Promise<Company[]>;
+  findCompany(id: string): Promise<Company | null>;
   saveCompany(company: Company): Promise<void>;
+  deleteCompany(id: string): Promise<boolean>;
   listJobs(companyId?: string): Promise<PersistedJob[]>;
   saveJob(job: PersistedJob): Promise<void>;
   findRole(stableKey: string): Promise<RoleLedgerEntry | null>;
   saveRole(entry: RoleLedgerEntry): Promise<void>;
+  setRoleAppliedAt(stableKey: string, appliedAt: string | null): Promise<boolean>;
   listCriteria(): Promise<Criteria[]>;
   saveCriteria(criteria: Criteria): Promise<void>;
+  deleteCriteria(id: string): Promise<boolean>;
   listPushSubscriptions(): Promise<PushSubscription[]>;
   savePushSubscription(subscription: PushSubscription): Promise<void>;
   deletePushSubscription(id: string): Promise<void>;
   listNotifications(): Promise<Notification[]>;
   saveNotification(notification: Notification): Promise<void>;
   findPollRun(id: string): Promise<PollRun | null>;
+  findLatestPollRun(trigger?: PollRun["trigger"]): Promise<PollRun | null>;
   savePollRun(run: PollRun): Promise<void>;
   recordObservation(entry: RoleLedgerEntry, job: PersistedJob): Promise<void>;
   purgeRemovedJobs(cutoff: string): Promise<number>;

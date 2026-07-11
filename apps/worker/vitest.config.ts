@@ -7,9 +7,11 @@ export default defineConfig({
       wrangler: { configPath: "./wrangler.test.toml" },
       miniflare: {
         bindings: {
+          API_BEARER_SECRET: "test-bearer-secret",
           TEST_MIGRATIONS: await readD1Migrations(
             new URL("../../migrations", import.meta.url).pathname,
           ),
+          VAPID_PUBLIC_KEY: "test-vapid-public-key",
         },
       },
     })),

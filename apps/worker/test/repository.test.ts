@@ -46,6 +46,30 @@ describe("D1Repository", () => {
     expect(await repository.listCriteria()).toEqual([criteriaFixture]);
   });
 
+  it("finds and deletes companies while reporting missing records", async () => {
+    const repository = new D1Repository(env.DB);
+    await repository.saveCompany(companyFixture);
+    expect(await repository.findCompany(companyFixture.id)).toEqual(companyFixture);
+    expect(await repository.findCompany("missing")).toBeNull();
+    expect(await repository.deleteCompany(companyFixture.id)).toBe(true);
+    expect(await repository.deleteCompany(companyFixture.id)).toBe(false);
+  });
+
+  it("updates applied state by stable key and deletes criteria", async () => {
+    const repository = new D1Repository(env.DB);
+    await repository.saveCompany(companyFixture);
+    await repository.saveRole(roleFixture);
+    await repository.saveCriteria(criteriaFixture);
+
+    const appliedAt = "2026-07-11T09:00:00.000Z";
+    expect(await repository.setRoleAppliedAt(roleFixture.stableKey, appliedAt)).toBe(true);
+    expect(await repository.findRole(roleFixture.stableKey)).toMatchObject({ appliedAt });
+    expect(await repository.setRoleAppliedAt(roleFixture.stableKey, null)).toBe(true);
+    expect(await repository.setRoleAppliedAt("missing", appliedAt)).toBe(false);
+    expect(await repository.deleteCriteria(criteriaFixture.id)).toBe(true);
+    expect(await repository.deleteCriteria(criteriaFixture.id)).toBe(false);
+  });
+
   it("seeds companies and criteria idempotently", async () => {
     const fixedNow = () => "2026-07-11T10:00:00.000Z";
     await seedDatabase(
@@ -192,6 +216,16 @@ describe("D1Repository", () => {
     };
     await repository.savePollRun(completed);
     expect(await repository.findPollRun(completed.id)).toEqual(completed);
+    const latestManual = {
+      ...pollRunFixture,
+      id: "poll-manual",
+      trigger: "manual" as const,
+      startedAt: "2026-07-11T10:00:00.000Z",
+    };
+    await repository.savePollRun(latestManual);
+    expect(await repository.findLatestPollRun()).toEqual(latestManual);
+    expect(await repository.findLatestPollRun("manual")).toEqual(latestManual);
+    expect(await repository.findLatestPollRun("scheduled")).toEqual(completed);
     await expect(repository.savePollRun({ ...completed, jobsSeen: -1 })).rejects.toThrow();
   });
 
