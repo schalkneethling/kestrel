@@ -894,6 +894,7 @@ export function App() {
   async function maintenance(path: string, success: string) {
     try {
       await api(path, { method: "POST" });
+      await load();
       setNotice({ kind: "status", message: success });
     } catch (cause) {
       setNotice({
