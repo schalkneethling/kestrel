@@ -40,7 +40,15 @@ pnpm build
 pnpm test
 pnpm run lint
 pnpm run format:check
+pnpm run actionlint
+pnpm run zizmor
+pnpm run quality
 ```
+
+`actionlint` and `zizmor` are run through `uvx` with pinned versions. Install
+[uv](https://docs.astral.sh/uv/getting-started/installation/) before running
+the workflow checks locally. They skip cleanly when the repository has no
+`.github/workflows` directory yet.
 
 ## Configuration And Secrets
 
