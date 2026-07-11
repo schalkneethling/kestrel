@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Kestrel Issue Triage Report</title>
+    <style>
+      body {
+        color: #1f2937;
+        font:
+          16px/1.5 system-ui,
+          sans-serif;
+        margin: 2rem auto;
+        max-width: 1100px;
+        padding: 0 1rem;
+      }
+
+      table {
+        border-collapse: collapse;
+        width: 100%;
+      }
+
+      th,
+      td {
+        border-bottom: 1px solid #d1d5db;
+        padding: 0.6rem;
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        background: #f3f4f6;
+      }
+
+      .p0 {
+        color: #b60205;
+        font-weight: 700;
+      }
+
+      .p1 {
+        color: #d93f0b;
+        font-weight: 700;
+      }
+
+      .p2 {
+        color: #a16207;
+        font-weight: 700;
+      }
+
+      code {
+        background: #f3f4f6;
+        border-radius: 4px;
+        padding: 0.1rem 0.25rem;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Kestrel Issue Triage Report</h1>
+    <p>Generated: 2026-07-09</p>
+    <p>
+      Repository: <a href="https://github.com/schalkneethling/kestrel">schalkneethling/kestrel</a>
+    </p>
+    <p>
+      No <code>GOAL.md</code> exists in the repository, so this triage used <code>README.md</code>,
+      <code>docs/job-tracker-implementation-plan.md</code>, and
+      <code>docs/job-tracker-backlog.md</code> as the project goal source.
+    </p>
+
+    <h2>Summary</h2>
+    <ul>
+      <li>Open issues triaged: 8</li>
+      <li>Closed issues: 0</li>
+      <li>
+        Priority labels created: <code>p0</code>, <code>p1</code>, <code>p2</code>, <code>p3</code>
+      </li>
+      <li>
+        Priority labels applied: six <code>p0</code>, one <code>p1</code>, one <code>p2</code>
+      </li>
+      <li>
+        Next issue to work:
+        <a href="https://github.com/schalkneethling/kestrel/issues/2"
+          >#2 E0 - Project scaffolding, configuration, secrets</a
+        >
+      </li>
+    </ul>
+
+    <h2>Still Needed Before Initial Testing</h2>
+    <p>
+      Excluding deployment-only work, the shortest path to a locally testable product is E0, E1, E2,
+      E3, E5, and E6. Web Push can follow once the core tracker can be exercised through the
+      dashboard.
+    </p>
+
+    <details open>
+      <summary>schalkneethling/kestrel - 8 open issues</summary>
+      <table>
+        <thead>
+          <tr>
+            <th>Priority</th>
+            <th>Issue</th>
+            <th>Rationale</th>
+            <th>Testing Readiness Role</th>
+            <th>Labels</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="p0">p0</td>
+            <td>
+              <a href="https://github.com/schalkneethling/kestrel/issues/2"
+                >#2 E0 - Project scaffolding, configuration, secrets</a
+              >
+            </td>
+            <td>
+              Still contains the test harness work needed to validate later epics. Deployment-secret
+              work can stay deferred.
+            </td>
+            <td>Foundation for local development, CI confidence, and worker/dashboard tests.</td>
+            <td>epic, area:infra, p0</td>
+          </tr>
+          <tr>
+            <td class="p0">p0</td>
+            <td>
+              <a href="https://github.com/schalkneethling/kestrel/issues/9"
+                >#9 E1 - Data model migrations</a
+              >
+            </td>
+            <td>
+              The product needs durable companies, jobs, criteria, subscriptions, notifications,
+              poll runs, and ledger state.
+            </td>
+            <td>Enables any meaningful saved-state testing.</td>
+            <td>epic, area:infra, p0</td>
+          </tr>
+          <tr>
+            <td class="p0">p0</td>
+            <td>
+              <a href="https://github.com/schalkneethling/kestrel/issues/8"
+                >#8 E2 - ATS adapters normalization</a
+              >
+            </td>
+            <td>
+              The tracker cannot fetch real job postings without at least the supported ATS adapter
+              path.
+            </td>
+            <td>Enables realistic company polling tests.</td>
+            <td>epic, area:adapters, p0</td>
+          </tr>
+          <tr>
+            <td class="p0">p0</td>
+            <td>
+              <a href="https://github.com/schalkneethling/kestrel/issues/6"
+                >#6 E3 - Diff engine, ledger, criteria matching, retention</a
+              >
+            </td>
+            <td>
+              This is the core product behavior: new, reposted, removed, matched, and retained job
+              state.
+            </td>
+            <td>Enables testing whether Kestrel actually tracks and classifies jobs correctly.</td>
+            <td>epic, area:engine, p0</td>
+          </tr>
+          <tr>
+            <td class="p0">p0</td>
+            <td>
+              <a href="https://github.com/schalkneethling/kestrel/issues/5">#5 E5 - API layer</a>
+            </td>
+            <td>
+              The dashboard and manual workflows need guarded API routes for companies, jobs,
+              criteria, poll, and purge.
+            </td>
+            <td>Enables end-to-end local testing through HTTP.</td>
+            <td>epic, area:api, p0</td>
+          </tr>
+          <tr>
+            <td class="p0">p0</td>
+            <td>
+              <a href="https://github.com/schalkneethling/kestrel/issues/4">#4 E6 - Dashboard</a>
+            </td>
+            <td>The user needs a UI to configure companies and criteria and inspect jobs.</td>
+            <td>Enables manual product testing without direct API calls.</td>
+            <td>epic, area:ui, p0</td>
+          </tr>
+          <tr>
+            <td class="p1">p1</td>
+            <td>
+              <a href="https://github.com/schalkneethling/kestrel/issues/7"
+                >#7 E4 - Web Push delivery</a
+              >
+            </td>
+            <td>
+              Notifications are a core outcome, but the app can be tested first through the
+              dashboard and API.
+            </td>
+            <td>Needed before testing notification delivery, not before basic tracker testing.</td>
+            <td>epic, area:push, p1</td>
+          </tr>
+          <tr>
+            <td class="p2">p2</td>
+            <td>
+              <a href="https://github.com/schalkneethling/kestrel/issues/3"
+                >#3 E7 - Observability politeness</a
+              >
+            </td>
+            <td>Useful for reliability and provider safety after the polling loop exists.</td>
+            <td>Important for deeper testing, but not the first blocker.</td>
+            <td>epic, area:observability, p2</td>
+          </tr>
+        </tbody>
+      </table>
+    </details>
+  </body>
+</html>
