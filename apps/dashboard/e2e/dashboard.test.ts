@@ -81,6 +81,7 @@ type MockState = {
   companies: Array<Record<string, unknown>>;
   criteria: Array<Record<string, unknown>>;
   jobs: Array<Record<string, unknown>>;
+  jobsStatus: number;
   requests: Array<{ method: string; path: string; authorization: string | null; body: unknown }>;
 };
 
@@ -98,6 +99,7 @@ async function mockApi(page: Page) {
     companies: [company, unsupportedCompany],
     criteria: [criteria],
     jobs: jobs.map((job) => ({ ...job })),
+    jobsStatus: 200,
     requests: [],
   };
   const cooldowns = new Set<string>();
@@ -132,6 +134,9 @@ async function mockApi(page: Page) {
       return json(route, 200, { company: state.companies[index] });
     }
     if (url.pathname === "/api/jobs" && method === "GET") {
+      if (state.jobsStatus !== 200) {
+        return json(route, state.jobsStatus, { error: "Internal server error" });
+      }
       let result = state.jobs;
       const status = url.searchParams.get("status");
       const companyId = url.searchParams.get("companyId");
@@ -198,6 +203,18 @@ test.describe("Kestrel dashboard acceptance", () => {
     await page.getByRole("button", { name: /connect/i }).click();
 
     await expect(page.getByRole("navigation", { name: /primary/i })).toBeVisible();
+  });
+
+  test("distinguishes a data failure from an invalid token", async ({ page }) => {
+    const state = await mockApi(page);
+    state.jobsStatus = 500;
+    await page.addInitScript(() => localStorage.setItem("kestrel-api-token", "browser-test-token"));
+    await page.goto("/");
+
+    await expect(page.getByRole("alert")).toContainText(
+      /dashboard could not load its data.*internal server error/i,
+    );
+    await expect(page.getByRole("alert")).not.toContainText(/saved token could not connect/i);
   });
 
   test("stores the API token locally and sends it as a bearer credential", async ({ page }) => {
