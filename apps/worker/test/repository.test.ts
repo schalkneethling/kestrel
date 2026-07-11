@@ -43,6 +43,9 @@ describe("D1Repository", () => {
     expect(await repository.listCompanies()).toEqual([companyFixture]);
     expect(await repository.findRole(roleFixture.stableKey)).toEqual(roleFixture);
     expect(await repository.listJobs(companyFixture.id)).toEqual([jobFixture]);
+    expect(await repository.listRoleAppliedAt([roleFixture.stableKey, "missing"])).toEqual({
+      [roleFixture.stableKey]: null,
+    });
     expect(await repository.listCriteria()).toEqual([criteriaFixture]);
   });
 
@@ -51,8 +54,17 @@ describe("D1Repository", () => {
     await repository.saveCompany(companyFixture);
     expect(await repository.findCompany(companyFixture.id)).toEqual(companyFixture);
     expect(await repository.findCompany("missing")).toBeNull();
-    expect(await repository.deleteCompany(companyFixture.id)).toBe(true);
-    expect(await repository.deleteCompany(companyFixture.id)).toBe(false);
+    expect(await repository.deleteCompany(companyFixture.id)).toBe("deleted");
+    expect(await repository.deleteCompany(companyFixture.id)).toBe("not_found");
+  });
+
+  it("reports a conflict when durable role history prevents company deletion", async () => {
+    const repository = new D1Repository(env.DB);
+    await repository.saveCompany(companyFixture);
+    await repository.saveRole(roleFixture);
+
+    expect(await repository.deleteCompany(companyFixture.id)).toBe("conflict");
+    expect(await repository.findCompany(companyFixture.id)).toEqual(companyFixture);
   });
 
   it("updates applied state by stable key and deletes criteria", async () => {

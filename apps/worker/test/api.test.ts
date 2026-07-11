@@ -86,7 +86,7 @@ async function seedJob() {
 beforeEach(async () => {
   await applyD1Migrations(env.DB, env.TEST_MIGRATIONS);
   await env.DB.exec(
-    "DELETE FROM notifications; DELETE FROM jobs; DELETE FROM role_ledger; DELETE FROM criteria; DELETE FROM push_subscriptions; DELETE FROM poll_runs; DELETE FROM companies;",
+    "DELETE FROM notifications; DELETE FROM jobs; DELETE FROM role_ledger; DELETE FROM criteria; DELETE FROM push_subscriptions; DELETE FROM poll_runs; DELETE FROM companies; DELETE FROM worker_health_checks;",
   );
 });
 
@@ -131,6 +131,16 @@ describe("company API", () => {
     );
     await expect(api("/api/companies").then((response) => response.json())).resolves.toEqual({
       companies: [],
+    });
+  });
+
+  it("returns a conflict when durable role history prevents deletion", async () => {
+    await seedJob();
+
+    const response = await api(`/api/companies/${companyFixture.id}`, { method: "DELETE" });
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({
+      error: "Company has durable role history and cannot be deleted",
     });
   });
 });
@@ -214,16 +224,42 @@ describe("push API", () => {
     expect(remove.status).toBe(204);
     expect(await env.DB.prepare("SELECT endpoint FROM push_subscriptions").first()).toBeNull();
   });
+
+  it.each(["", "123", true, {}, undefined])(
+    "rejects invalid expirationTime %s before coercion",
+    async (expirationTime) => {
+      const response = await api("/api/push/subscriptions", {
+        method: "POST",
+        body: json({
+          endpoint: "https://push.example/invalid-expiration",
+          expirationTime,
+          keys: { p256dh: "p256dh", auth: "auth" },
+        }),
+      });
+
+      expect(response.status).toBe(400);
+      await expect(response.json()).resolves.toEqual({
+        error: "expirationTime must be a number or null",
+      });
+    },
+  );
 });
 
 describe("manual maintenance API", () => {
   it.each(["poll", "purge"])(
     "rate-limits repeated %s requests with retry metadata",
     async (route) => {
-      const first = await api(`/api/${route}`, { method: "POST" });
-      expect(first.status).toBe(200);
+      const responses = await Promise.all([
+        api(`/api/${route}`, { method: "POST" }),
+        api(`/api/${route}`, { method: "POST" }),
+      ]);
+      expect(responses.map(({ status }) => status).sort((left, right) => left - right)).toEqual([
+        200, 429,
+      ]);
 
-      const repeated = await api(`/api/${route}`, { method: "POST" });
+      const repeated = responses.find(({ status }) => status === 429);
+      expect(repeated).toBeDefined();
+      if (!repeated) throw new Error("Expected one cooldown response");
       expect(repeated.status).toBe(429);
       expect(await repeated.json()).toEqual({
         error: `Manual ${route} is cooling down`,

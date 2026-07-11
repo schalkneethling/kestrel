@@ -8,7 +8,7 @@ import type {
   PushSubscription,
   RoleLedgerEntry,
 } from "@kestrel/core";
-import { and, desc, eq, isNotNull, lt } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, lt } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import {
   companies,
@@ -61,12 +61,23 @@ export class D1Repository implements PersistencePort {
       .values({ ...company, createdAt: now, updatedAt: now })
       .onConflictDoUpdate({ target: companies.id, set: { ...company, updatedAt: now } });
   }
-  async deleteCompany(id: string): Promise<boolean> {
-    const deleted = await this.#db
-      .delete(companies)
-      .where(eq(companies.id, id))
-      .returning({ id: companies.id });
-    return deleted.length > 0;
+  async deleteCompany(id: string): Promise<"deleted" | "not_found" | "conflict"> {
+    try {
+      const deleted = await this.#db
+        .delete(companies)
+        .where(eq(companies.id, id))
+        .returning({ id: companies.id });
+      return deleted.length > 0 ? "deleted" : "not_found";
+    } catch (cause) {
+      const referencedRole = await this.#db
+        .select({ stableKey: roleLedger.stableKey })
+        .from(roleLedger)
+        .where(eq(roleLedger.companyId, id))
+        .limit(1)
+        .get();
+      if (referencedRole) return "conflict";
+      throw cause;
+    }
   }
   async listJobs(companyId?: string): Promise<PersistedJob[]> {
     const query = this.#db.select().from(jobs);
@@ -89,6 +100,14 @@ export class D1Repository implements PersistencePort {
       lastSeenAt: row.lastSeenAt,
       removedAt: row.removedAt,
     }));
+  }
+  async listRoleAppliedAt(stableKeys: string[]): Promise<Record<string, string | null>> {
+    if (stableKeys.length === 0) return {};
+    const rows = await this.#db
+      .select({ stableKey: roleLedger.stableKey, appliedAt: roleLedger.appliedAt })
+      .from(roleLedger)
+      .where(inArray(roleLedger.stableKey, stableKeys));
+    return Object.fromEntries(rows.map(({ stableKey, appliedAt }) => [stableKey, appliedAt]));
   }
   async saveJob(job: PersistedJob): Promise<void> {
     const { regions, ...values } = job;

@@ -10,6 +10,8 @@ export type Env = {
 };
 
 const MANUAL_COOLDOWN_SECONDS = 60;
+const ATS_REQUEST_TIMEOUT_MILLISECONDS = 15_000;
+const HEALTH_PROBE_ID = "probe:health";
 
 const json = (data: unknown, init?: ResponseInit) => {
   const headers = new Headers(init?.headers);
@@ -115,13 +117,39 @@ function criteriaFrom(value: Record<string, unknown>, id?: string): Criteria {
 
 function adapters() {
   return createAdapterRegistry(async ({ url, headers }) => {
-    const response = await fetch(url, { headers });
+    const signal: AbortSignal = AbortSignal.timeout(ATS_REQUEST_TIMEOUT_MILLISECONDS);
+    const response = await fetch(url, { headers, signal });
     return {
       status: response.status,
       headers: Object.fromEntries(response.headers.entries()),
       json: () => response.json(),
     };
   });
+}
+
+async function acquireMaintenanceLease(db: D1Database, key: string, now: Date) {
+  const checkedAt = now.toISOString();
+  const cutoff = new Date(now.getTime() - MANUAL_COOLDOWN_SECONDS * 1_000).toISOString();
+  const acquired = await db
+    .prepare(
+      `INSERT INTO worker_health_checks (id, checked_at) VALUES (?, ?)
+       ON CONFLICT(id) DO UPDATE SET checked_at = excluded.checked_at
+       WHERE worker_health_checks.checked_at <= ?
+       RETURNING checked_at`,
+    )
+    .bind(key, checkedAt, cutoff)
+    .first<{ checked_at: string }>();
+  if (acquired) return { acquired: true as const, retryAfterSeconds: 0 };
+
+  const lease = await db
+    .prepare("SELECT checked_at FROM worker_health_checks WHERE id = ?")
+    .bind(key)
+    .first<{ checked_at: string }>();
+  const elapsed = lease ? now.getTime() - Date.parse(lease.checked_at) : 0;
+  return {
+    acquired: false as const,
+    retryAfterSeconds: Math.max(1, Math.ceil(MANUAL_COOLDOWN_SECONDS - elapsed / 1_000)),
+  };
 }
 
 const routeId = (pathname: string, collection: string) => {
@@ -140,16 +168,17 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
   try {
     if (url.pathname === "/api/health" && method === "GET") {
       const checkedAt = new Date().toISOString();
-      const id = crypto.randomUUID();
-      await env.DB.prepare("INSERT INTO worker_health_checks (id, checked_at) VALUES (?, ?)")
-        .bind(id, checkedAt)
+      await env.DB.prepare(
+        "INSERT INTO worker_health_checks (id, checked_at) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET checked_at = excluded.checked_at",
+      )
+        .bind(HEALTH_PROBE_ID, checkedAt)
         .run();
       const row = await env.DB.prepare("SELECT id FROM worker_health_checks WHERE id = ?")
-        .bind(id)
+        .bind(HEALTH_PROBE_ID)
         .first<{ id: string }>();
       return json({
-        ok: row?.id === id,
-        database: { ok: row?.id === id, checkedAt },
+        ok: row?.id === HEALTH_PROBE_ID,
+        database: { ok: row?.id === HEALTH_PROBE_ID, checkedAt },
         supportedAtsTypes: SUPPORTED_ATS_TYPES,
       });
     }
@@ -176,20 +205,24 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
         return json({ company });
       }
       if (method === "DELETE") {
-        return (await repository.deleteCompany(companyId))
-          ? new Response(null, { status: 204 })
-          : error(404, "Company not found");
+        const result = await repository.deleteCompany(companyId);
+        if (result === "deleted") return new Response(null, { status: 204 });
+        if (result === "conflict") {
+          return error(409, "Company has durable role history and cannot be deleted");
+        }
+        return error(404, "Company not found");
       }
     }
 
     if (url.pathname === "/api/jobs" && method === "GET") {
       const jobs = await repository.listJobs(url.searchParams.get("companyId") ?? undefined);
-      const enriched = await Promise.all(
-        jobs.map(async (job) => ({
-          ...job,
-          appliedAt: (await repository.findRole(job.stableKey))?.appliedAt ?? null,
-        })),
+      const appliedAtByStableKey = await repository.listRoleAppliedAt(
+        jobs.map(({ stableKey }) => stableKey),
       );
+      const enriched = jobs.map((job) => ({
+        ...job,
+        appliedAt: appliedAtByStableKey[job.stableKey] ?? null,
+      }));
       const status = url.searchParams.get("status");
       const filtered =
         status === "active"
@@ -256,14 +289,18 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
         endpoint,
         p256dh: text(keyValues.p256dh, "keys.p256dh"),
         auth: text(keyValues.auth, "keys.auth"),
-        expirationTime: value.expirationTime == null ? null : Number(value.expirationTime),
+        expirationTime: (() => {
+          if (value.expirationTime === null) return null;
+          if (typeof value.expirationTime === "number" && Number.isFinite(value.expirationTime)) {
+            return value.expirationTime;
+          }
+          throw new ApiError(400, "expirationTime must be a number or null");
+        })(),
         createdAt: existing?.createdAt ?? new Date().toISOString(),
         lastSuccessAt: existing?.lastSuccessAt ?? null,
         failureCount: 0,
         status: "active",
       };
-      if (subscription.expirationTime !== null && !Number.isFinite(subscription.expirationTime))
-        throw new ApiError(400, "expirationTime must be a number or null");
       await repository.savePushSubscription(subscription);
       return json({ subscription }, { status: existing ? 200 : 201 });
     }
@@ -286,12 +323,9 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
     }
 
     if (url.pathname === "/api/poll" && method === "POST") {
-      const latest = await repository.findLatestPollRun("manual");
-      const elapsed = latest ? Date.now() - Date.parse(latest.startedAt) : Infinity;
-      if (elapsed < MANUAL_COOLDOWN_SECONDS * 1_000) {
-        const retryAfterSeconds = Math.ceil(MANUAL_COOLDOWN_SECONDS - elapsed / 1_000);
-        return cooldownError("Manual poll is cooling down", retryAfterSeconds);
-      }
+      const lease = await acquireMaintenanceLease(env.DB, "cooldown:poll", new Date());
+      if (!lease.acquired)
+        return cooldownError("Manual poll is cooling down", lease.retryAfterSeconds);
       const result = await runPollCycle(
         {
           persistence: repository,
@@ -304,23 +338,10 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
       return json(result);
     }
     if (url.pathname === "/api/purge" && method === "POST") {
-      const key = "cooldown:purge";
-      const latest = await env.DB.prepare(
-        "SELECT checked_at FROM worker_health_checks WHERE id = ?",
-      )
-        .bind(key)
-        .first<{ checked_at: string }>();
-      const elapsed = latest ? Date.now() - Date.parse(latest.checked_at) : Infinity;
-      if (elapsed < MANUAL_COOLDOWN_SECONDS * 1_000) {
-        const retryAfterSeconds = Math.ceil(MANUAL_COOLDOWN_SECONDS - elapsed / 1_000);
-        return cooldownError("Manual purge is cooling down", retryAfterSeconds);
-      }
+      const lease = await acquireMaintenanceLease(env.DB, "cooldown:purge", new Date());
+      if (!lease.acquired)
+        return cooldownError("Manual purge is cooling down", lease.retryAfterSeconds);
       const purged = await runRetentionSweep(repository);
-      await env.DB.prepare(
-        "INSERT INTO worker_health_checks (id, checked_at) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET checked_at = excluded.checked_at",
-      )
-        .bind(key, new Date().toISOString())
-        .run();
       return json({ purged });
     }
 

@@ -33,5 +33,15 @@ describe("Worker health endpoint", () => {
       },
       supportedAtsTypes: ["greenhouse", "lever", "ashby"],
     });
+
+    await SELF.fetch("https://kestrel.test/api/health", {
+      headers: { authorization: "Bearer test-bearer-secret" },
+    });
+    const probes = await env.DB.prepare(
+      "SELECT COUNT(*) AS count FROM worker_health_checks WHERE id = ?",
+    )
+      .bind("probe:health")
+      .first<{ count: number }>();
+    expect(probes?.count).toBe(1);
   });
 });

@@ -84,8 +84,9 @@ export interface PersistencePort {
   listCompanies(): Promise<Company[]>;
   findCompany(id: string): Promise<Company | null>;
   saveCompany(company: Company): Promise<void>;
-  deleteCompany(id: string): Promise<boolean>;
+  deleteCompany(id: string): Promise<"deleted" | "not_found" | "conflict">;
   listJobs(companyId?: string): Promise<PersistedJob[]>;
+  listRoleAppliedAt(stableKeys: string[]): Promise<Record<string, string | null>>;
   saveJob(job: PersistedJob): Promise<void>;
   findRole(stableKey: string): Promise<RoleLedgerEntry | null>;
   saveRole(entry: RoleLedgerEntry): Promise<void>;
