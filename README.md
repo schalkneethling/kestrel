@@ -12,9 +12,9 @@ polled.
 
 ## Current Status
 
-The repository is in early E0 scaffolding. The workspace layout exists, the core
-package has an executable Vitest test, and the Worker and dashboard apps have
-minimal stubs.
+The repository is in early E0 scaffolding. The workspace layout exists, with
+plain Vitest coverage for core logic, Workers-pool Vitest coverage for the
+Worker and D1, and Playwright coverage for dashboard flows.
 
 ## Workspace
 
@@ -30,6 +30,7 @@ Use pnpm 10.33.2.
 
 ```sh
 pnpm install
+pnpm exec playwright install chromium
 ```
 
 ## Scripts
@@ -38,6 +39,7 @@ pnpm install
 pnpm dev
 pnpm build
 pnpm test
+pnpm test:e2e
 pnpm run lint
 pnpm run format:check
 ```
@@ -87,8 +89,8 @@ curl http://127.0.0.1:8787/api/health
 - Cloudflare D1.
 - React 19 and Vite.
 - Tailwind v4 and shadcn/ui for the dashboard when UI work begins.
-- Vitest for unit and integration tests.
-- Playwright for dashboard flows when E0 test harness work lands.
+- Vitest for unit tests and Workers-pool integration tests.
+- Playwright for dashboard flows.
 - Varlock for configuration and secret handling.
 
 ## License

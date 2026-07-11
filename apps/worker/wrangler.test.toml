@@ -1,0 +1,9 @@
+name = "kestrel-test"
+main = "src/index.ts"
+compatibility_date = "2026-07-08"
+compatibility_flags = ["nodejs_compat"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "kestrel-test"
+database_id = "00000000-0000-0000-0000-000000000000"

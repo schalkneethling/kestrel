@@ -23,6 +23,8 @@ packages/**/dist/
 *.tsbuildinfo
 .tokensave/
 .wrangler/
+playwright-report/
+test-results/
 *.local
 
 # Editor directories and files
