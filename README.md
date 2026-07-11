@@ -12,9 +12,9 @@ polled.
 
 ## Current Status
 
-The repository is in early E0 scaffolding. The workspace layout exists, the core
-package has an executable Vitest test, and the Worker and dashboard apps have
-minimal stubs.
+The repository is in early E0 scaffolding. The workspace layout exists, with
+plain Vitest coverage for core logic, Workers-pool Vitest coverage for the
+Worker and D1, and Playwright coverage for dashboard flows.
 
 ## Workspace
 
@@ -30,6 +30,7 @@ Use pnpm 10.33.2.
 
 ```sh
 pnpm install
+pnpm exec playwright install chromium
 ```
 
 ## Scripts
@@ -38,6 +39,7 @@ pnpm install
 pnpm dev
 pnpm build
 pnpm test
+pnpm test:e2e
 pnpm run lint
 pnpm run format:check
 pnpm run actionlint
@@ -66,6 +68,19 @@ Sensitive local values belong in git-ignored `.env.local` files as Varlock encry
 
 Production secrets remain in Cloudflare and are deployed through Varlock's Cloudflare integration. Use `varlock-wrangler deploy` instead of plain `wrangler deploy` once deployment is wired.
 
+Generate the VAPID pair once, then provision its private half after Wrangler is authenticated:
+
+```sh
+pnpm run vapid:generate
+pnpm run vapid:provision
+```
+
+Generation writes the public key to `.env` and an encrypted Varlock reference to `.env.local`. Both files are local and git-ignored. The public key is safe to share, but this prototype keeps it local beside the device-local encrypted private-key reference. That reference can only be decrypted on the device that created it, so keep an appropriate external recovery copy before relying on push delivery.
+
+The private key is sent to Varlock and Wrangler only through standard input and is never printed, placed in command arguments, or inherited by the Wrangler child process. Generation refuses to replace an existing pair; `pnpm run vapid:generate -- --rotate` is intentionally required because rotation invalidates existing push subscriptions. Once subscriptions exist, do not use this one-step rotation. Introduce versioned old and new bindings, publish the new public key, migrate client subscriptions while retaining the old private key, and retire the old pair only after migration.
+
+Provisioning targets only the root `kestrel` Worker because no named Wrangler environments are configured. Pass `--profile NAME` after `--` when needed; `--env` is rejected. The command confirms an existing `kestrel` deployment before uploading, then verifies the name-only `VAPID_PRIVATE_KEY` listing afterward. Provisioning can be retried with the encrypted local pair after a clear failure. If the upload result is ambiguous, a name-only listing cannot prove which private value is active; inspect the deployed Worker version and do not retry automatically. Cloudflare's `wrangler secret put` creates and immediately deploys a new Worker version, so confirm the account and Worker before running it.
+
 ## Local Worker And D1
 
 Local Worker and D1 setup:
@@ -82,8 +97,8 @@ curl http://127.0.0.1:8787/api/health
 - Cloudflare D1.
 - React 19 and Vite.
 - Tailwind v4 and shadcn/ui for the dashboard when UI work begins.
-- Vitest for unit and integration tests.
-- Playwright for dashboard flows when E0 test harness work lands.
+- Vitest for unit tests and Workers-pool integration tests.
+- Playwright for dashboard flows.
 - Varlock for configuration and secret handling.
 
 ## License
