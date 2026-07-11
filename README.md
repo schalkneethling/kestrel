@@ -16,6 +16,13 @@ The repository is in early E0 scaffolding. The workspace layout exists, with
 plain Vitest coverage for core logic, Workers-pool Vitest coverage for the
 Worker and D1, and Playwright coverage for dashboard flows.
 
+## Architecture
+
+The target architecture, data flow, and dependency boundaries are documented in
+[docs/architecture.md](docs/architecture.md). The decision to keep domain logic
+independent from the Drizzle/D1 persistence implementation is recorded in
+[ADR 0001](docs/adr/0001-domain-persistence-boundary.md).
+
 ## Workspace
 
 - `packages/core`: platform-agnostic ATS, normalization, diff, and matching
@@ -94,7 +101,7 @@ curl http://127.0.0.1:8787/api/health
 ## Prototype Stack
 
 - Cloudflare Workers and Cron Triggers.
-- Cloudflare D1.
+- Cloudflare D1, with Drizzle as the Worker persistence and migration tool.
 - React 19 and Vite.
 - Tailwind v4 and shadcn/ui for the dashboard when UI work begins.
 - Vitest for unit tests and Workers-pool integration tests.

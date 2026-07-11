@@ -3,208 +3,229 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Kestrel Issue Triage Report</title>
+    <title>Kestrel GitHub issue triage</title>
     <style>
-      body {
-        color: #1f2937;
-        font:
-          16px/1.5 system-ui,
-          sans-serif;
-        margin: 2rem auto;
-        max-width: 1100px;
-        padding: 0 1rem;
+      :root {
+        color-scheme: light dark;
+        font-family: system-ui, sans-serif;
       }
-
+      body {
+        max-width: 82rem;
+        margin: 2rem auto;
+        padding: 0 1rem;
+        line-height: 1.5;
+      }
       table {
         border-collapse: collapse;
         width: 100%;
       }
-
       th,
       td {
-        border-bottom: 1px solid #d1d5db;
+        border: 1px solid #8886;
         padding: 0.6rem;
         text-align: left;
         vertical-align: top;
       }
-
       th {
-        background: #f3f4f6;
+        font-weight: 700;
       }
-
+      summary {
+        cursor: pointer;
+        font-weight: 700;
+      }
       .p0 {
         color: #b60205;
         font-weight: 700;
       }
-
       .p1 {
-        color: #d93f0b;
+        color: #a64b00;
         font-weight: 700;
       }
-
       .p2 {
-        color: #a16207;
+        color: #806000;
         font-weight: 700;
       }
-
-      code {
-        background: #f3f4f6;
-        border-radius: 4px;
-        padding: 0.1rem 0.25rem;
+      .p3 {
+        color: #087019;
+        font-weight: 700;
       }
     </style>
   </head>
   <body>
-    <h1>Kestrel Issue Triage Report</h1>
-    <p>Generated: 2026-07-09</p>
-    <p>
-      Repository: <a href="https://github.com/schalkneethling/kestrel">schalkneethling/kestrel</a>
-    </p>
-    <p>
-      No <code>GOAL.md</code> exists in the repository, so this triage used <code>README.md</code>,
-      <code>docs/job-tracker-implementation-plan.md</code>, and
-      <code>docs/job-tracker-backlog.md</code> as the project goal source.
-    </p>
-
-    <h2>Summary</h2>
-    <ul>
-      <li>Open issues triaged: 8</li>
-      <li>Closed issues: 0</li>
-      <li>
-        Priority labels created: <code>p0</code>, <code>p1</code>, <code>p2</code>, <code>p3</code>
-      </li>
-      <li>
-        Priority labels applied: six <code>p0</code>, one <code>p1</code>, one <code>p2</code>
-      </li>
-      <li>
-        Next issue to work:
-        <a href="https://github.com/schalkneethling/kestrel/issues/2"
-          >#2 E0 - Project scaffolding, configuration, secrets</a
-        >
-      </li>
-    </ul>
-
-    <h2>Still Needed Before Initial Testing</h2>
-    <p>
-      Excluding deployment-only work, the shortest path to a locally testable product is E0, E1, E2,
-      E3, E5, and E6. Web Push can follow once the core tracker can be exercised through the
-      dashboard.
-    </p>
-
+    <header>
+      <h1>GitHub issue triage report</h1>
+      <p>Generated: <time datetime="2026-07-11T15:52:00+02:00">2026-07-11 15:52 SAST</time></p>
+      <p>
+        Input repository:
+        <a href="https://github.com/schalkneethling/kestrel">schalkneethling/kestrel</a>
+      </p>
+    </header>
+    <section aria-labelledby="summary-heading">
+      <h2 id="summary-heading">Summary</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Repository</th>
+            <th>Status</th>
+            <th>Open</th>
+            <th>p0</th>
+            <th>p1</th>
+            <th>p2</th>
+            <th>p3</th>
+            <th>Next issue</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>schalkneethling/kestrel</td>
+            <td>Triaged</td>
+            <td>7</td>
+            <td>3</td>
+            <td>3</td>
+            <td>1</td>
+            <td>0</td>
+            <td>
+              <a href="https://github.com/schalkneethling/kestrel/issues/9"
+                >#9 E1 – Data model and migrations</a
+              >
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
     <details open>
-      <summary>schalkneethling/kestrel - 8 open issues</summary>
+      <summary>
+        schalkneethling/kestrel — 7 open issues — p0: 3, p1: 3, p2: 1, p3: 0 — next: #9
+      </summary>
+      <h2>Goal used for triage</h2>
+      <p>
+        Kestrel is a single-user job-posting tracker. Its essential outcomes are reliable polling
+        and normalization for Greenhouse, Lever, and Ashby; durable new/repost/removal
+        classification; useful matching and push notification delivery; and safe, polite operation.
+      </p>
+      <p>
+        <strong>Label update:</strong> Existing <code>p0</code>–<code>p3</code> labels were
+        retained. Labels changed: #4 p0 → p1 and #5 p0 → p1. Every open issue has exactly one
+        priority label. Closed as stale/completed: #2 and #14.
+      </p>
+      <h2>Next issue</h2>
+      <p>
+        <a href="https://github.com/schalkneethling/kestrel/issues/9"
+          >#9 E1 – Data model and migrations</a
+        >
+        is ready to start and establishes the D1 tables and durable <code>role_ledger</code> that
+        the diff engine, retention behavior, API, and dashboard rely on. Although E2 can run
+        independently, E1 is the clearest next focused work session and unlocks the project’s
+        central data-integrity constraint.
+      </p>
+      <h2>Issues</h2>
       <table>
         <thead>
           <tr>
             <th>Priority</th>
             <th>Issue</th>
-            <th>Rationale</th>
-            <th>Testing Readiness Role</th>
-            <th>Labels</th>
+            <th>Rationale tied to goal</th>
+            <th>Impact</th>
+            <th>Current labels</th>
+            <th>Notes</th>
           </tr>
         </thead>
         <tbody>
           <tr>
             <td class="p0">p0</td>
             <td>
-              <a href="https://github.com/schalkneethling/kestrel/issues/2"
-                >#2 E0 - Project scaffolding, configuration, secrets</a
-              >
-            </td>
-            <td>
-              Still contains the test harness work needed to validate later epics. Deployment-secret
-              work can stay deferred.
-            </td>
-            <td>Foundation for local development, CI confidence, and worker/dashboard tests.</td>
-            <td>epic, area:infra, p0</td>
-          </tr>
-          <tr>
-            <td class="p0">p0</td>
-            <td>
               <a href="https://github.com/schalkneethling/kestrel/issues/9"
-                >#9 E1 - Data model migrations</a
+                >#9 E1 – Data model and migrations</a
               >
             </td>
             <td>
-              The product needs durable companies, jobs, criteria, subscriptions, notifications,
-              poll runs, and ledger state.
+              The versioned schema and durable ledger are prerequisites for correct repost
+              detection, applied-state memory, retention, and all persisted product data.
             </td>
-            <td>Enables any meaningful saved-state testing.</td>
+            <td>Blocks the core data-integrity model and downstream engine/API work.</td>
             <td>epic, area:infra, p0</td>
+            <td>Nominated next; defined subtasks make it ready.</td>
           </tr>
           <tr>
             <td class="p0">p0</td>
             <td>
               <a href="https://github.com/schalkneethling/kestrel/issues/8"
-                >#8 E2 - ATS adapters normalization</a
+                >#8 E2 – ATS adapters and normalization</a
               >
             </td>
             <td>
-              The tracker cannot fetch real job postings without at least the supported ATS adapter
-              path.
+              Polling and normalizing the three supported ATS platforms is a primary product
+              outcome.
             </td>
-            <td>Enables realistic company polling tests.</td>
+            <td>Without it, no roles enter the tracker.</td>
             <td>epic, area:adapters, p0</td>
+            <td>Independent of E1, but benefits from shared core conventions.</td>
           </tr>
           <tr>
             <td class="p0">p0</td>
             <td>
               <a href="https://github.com/schalkneethling/kestrel/issues/6"
-                >#6 E3 - Diff engine, ledger, criteria matching, retention</a
+                >#6 E3 – Diff engine, ledger, criteria matching, and retention</a
               >
             </td>
             <td>
-              This is the core product behavior: new, reposted, removed, matched, and retained job
-              state.
+              Correct classification, matching, and durable application memory are the heart of the
+              low-noise tracker promise.
             </td>
-            <td>Enables testing whether Kestrel actually tracks and classifies jobs correctly.</td>
+            <td>Blocks trustworthy results and notifications.</td>
             <td>epic, area:engine, p0</td>
-          </tr>
-          <tr>
-            <td class="p0">p0</td>
-            <td>
-              <a href="https://github.com/schalkneethling/kestrel/issues/5">#5 E5 - API layer</a>
-            </td>
-            <td>
-              The dashboard and manual workflows need guarded API routes for companies, jobs,
-              criteria, poll, and purge.
-            </td>
-            <td>Enables end-to-end local testing through HTTP.</td>
-            <td>epic, area:api, p0</td>
-          </tr>
-          <tr>
-            <td class="p0">p0</td>
-            <td>
-              <a href="https://github.com/schalkneethling/kestrel/issues/4">#4 E6 - Dashboard</a>
-            </td>
-            <td>The user needs a UI to configure companies and criteria and inspect jobs.</td>
-            <td>Enables manual product testing without direct API calls.</td>
-            <td>epic, area:ui, p0</td>
+            <td>Blocked by E1 and E2.</td>
           </tr>
           <tr>
             <td class="p1">p1</td>
             <td>
               <a href="https://github.com/schalkneethling/kestrel/issues/7"
-                >#7 E4 - Web Push delivery</a
+                >#7 E4 – Web Push delivery</a
               >
             </td>
-            <td>
-              Notifications are a core outcome, but the app can be tested first through the
-              dashboard and API.
-            </td>
-            <td>Needed before testing notification delivery, not before basic tracker testing.</td>
+            <td>Push delivery is a core user outcome once matching data exists.</td>
+            <td>High user value; does not block the data/engine foundation.</td>
             <td>epic, area:push, p1</td>
+            <td>Depends on E3 cycle orchestration and E0 VAPID work.</td>
+          </tr>
+          <tr>
+            <td class="p1">p1</td>
+            <td>
+              <a href="https://github.com/schalkneethling/kestrel/issues/5">#5 E5 – API layer</a>
+            </td>
+            <td>
+              Protected routes make companies, jobs, criteria, and operational controls usable by
+              the dashboard.
+            </td>
+            <td>High leverage integration layer after the core engine exists.</td>
+            <td>epic, area:api, p1</td>
+            <td>Downgraded from p0 because its stated dependencies are unresolved.</td>
+          </tr>
+          <tr>
+            <td class="p1">p1</td>
+            <td>
+              <a href="https://github.com/schalkneethling/kestrel/issues/4">#4 E6 – Dashboard</a>
+            </td>
+            <td>
+              The dashboard is required for the single user to manage and inspect the tracker.
+            </td>
+            <td>High product value; follows API and subscription work.</td>
+            <td>epic, area:ui, p1</td>
+            <td>Downgraded from p0 because it is not a current foundation blocker.</td>
           </tr>
           <tr>
             <td class="p2">p2</td>
             <td>
               <a href="https://github.com/schalkneethling/kestrel/issues/3"
-                >#3 E7 - Observability politeness</a
+                >#3 E7 – Observability and politeness</a
               >
             </td>
-            <td>Useful for reliability and provider safety after the polling loop exists.</td>
-            <td>Important for deeper testing, but not the first blocker.</td>
+            <td>
+              Visibility, request politeness, and failure isolation support reliable operation.
+            </td>
+            <td>Important operational safeguard after the polling cycle exists.</td>
             <td>epic, area:observability, p2</td>
+            <td>Some failure isolation belongs in E3; this epic depends on E3/E5.</td>
           </tr>
         </tbody>
       </table>
