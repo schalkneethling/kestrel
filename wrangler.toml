@@ -2,6 +2,7 @@ name = "kestrel"
 main = "apps/worker/src/index.ts"
 compatibility_date = "2026-07-08"
 compatibility_flags = ["nodejs_compat"]
+workers_dev = true
 
 [secrets]
 required = ["VAPID_PRIVATE_KEY"]
@@ -15,6 +16,7 @@ migrations_dir = "migrations"
 [assets]
 directory = "apps/dashboard/dist"
 binding = "ASSETS"
+not_found_handling = "single-page-application"
 
 [triggers]
 crons = ["0 */3 * * *"]

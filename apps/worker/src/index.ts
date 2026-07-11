@@ -5,9 +5,21 @@ import { D1Repository } from "./db/repository";
 import { handleApi } from "./api";
 import type { Env } from "./api";
 
-export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+export type WorkerEnv = Env & {
+  ASSETS: Fetcher;
+};
+
+export function handleRequest(request: Request, env: WorkerEnv): Promise<Response> {
+  const pathname = new URL(request.url).pathname;
+  if (pathname === "/api" || pathname.startsWith("/api/")) {
     return handleApi(request, env);
+  }
+  return env.ASSETS.fetch(request);
+}
+
+export default {
+  async fetch(request: Request, env: WorkerEnv): Promise<Response> {
+    return handleRequest(request, env);
   },
 
   async scheduled(_controller: ScheduledController, env: Env): Promise<void> {
