@@ -60,6 +60,19 @@ Sensitive local values belong in git-ignored `.env.local` files as Varlock encry
 
 Production secrets remain in Cloudflare and are deployed through Varlock's Cloudflare integration. Use `varlock-wrangler deploy` instead of plain `wrangler deploy` once deployment is wired.
 
+Generate the VAPID pair once, then provision its private half after Wrangler is authenticated:
+
+```sh
+pnpm run vapid:generate
+pnpm run vapid:provision
+```
+
+Generation writes the public key to `.env` and an encrypted Varlock reference to `.env.local`. Both files are local and git-ignored. The public key is safe to share, but this prototype keeps it local beside the device-local encrypted private-key reference. That reference can only be decrypted on the device that created it, so keep an appropriate external recovery copy before relying on push delivery.
+
+The private key is sent to Varlock and Wrangler only through standard input and is never printed, placed in command arguments, or inherited by the Wrangler child process. Generation refuses to replace an existing pair; `pnpm run vapid:generate -- --rotate` is intentionally required because rotation invalidates existing push subscriptions. Once subscriptions exist, do not use this one-step rotation. Introduce versioned old and new bindings, publish the new public key, migrate client subscriptions while retaining the old private key, and retire the old pair only after migration.
+
+Provisioning targets only the root `kestrel` Worker because no named Wrangler environments are configured. Pass `--profile NAME` after `--` when needed; `--env` is rejected. The command confirms an existing `kestrel` deployment before uploading, then verifies the name-only `VAPID_PRIVATE_KEY` listing afterward. Provisioning can be retried with the encrypted local pair after a clear failure. If the upload result is ambiguous, a name-only listing cannot prove which private value is active; inspect the deployed Worker version and do not retry automatically. Cloudflare's `wrangler secret put` creates and immediately deploys a new Worker version, so confirm the account and Worker before running it.
+
 ## Local Worker And D1
 
 Local Worker and D1 setup:

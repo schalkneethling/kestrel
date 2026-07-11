@@ -18,15 +18,18 @@
     "format": "oxfmt --write .",
     "format:check": "oxfmt --check .",
     "quality": "pnpm lint && pnpm format:check && pnpm react:doctor",
-    "test": "pnpm --recursive --if-present run test",
+    "test": "node --test scripts/vapid-tests.mjs && pnpm --recursive --if-present run test",
     "test:e2e": "playwright test",
+    "test:vapid": "node --test scripts/vapid-tests.mjs",
     "test:watch": "pnpm --recursive --if-present run test:watch",
     "react:doctor": "react-doctor --offline",
     "react:doctor:diff": "react-doctor --offline --diff",
     "env:validate": "varlock load --agent",
     "env:validate:production": "APP_ENV=production varlock load --agent",
     "secrets:scan": "varlock scan",
-    "secrets:scan:staged": "varlock scan --staged"
+    "secrets:scan:staged": "varlock scan --staged",
+    "vapid:generate": "node scripts/vapid.mjs generate",
+    "vapid:provision": "varlock run -- node scripts/vapid.mjs provision"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "0.18.4",
@@ -44,7 +47,7 @@
     "vite": "npm:@voidzero-dev/vite-plus-core@0.2.4",
     "vite-plus": "0.2.4",
     "vitest": "4.1.10",
-    "wrangler": "^4.110.0"
+    "wrangler": "4.110.0"
   },
   "overrides": {
     "vite": "npm:@voidzero-dev/vite-plus-core@0.2.4",

@@ -3,10 +3,13 @@ main = "apps/worker/src/index.ts"
 compatibility_date = "2026-07-08"
 compatibility_flags = ["nodejs_compat"]
 
+[secrets]
+required = ["VAPID_PRIVATE_KEY"]
+
 [[d1_databases]]
 binding = "DB"
 database_name = "kestrel"
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "8ac3a8b2-b31a-4d77-a233-604c6edc818f"
 migrations_dir = "migrations"
 
 [assets]
