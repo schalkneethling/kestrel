@@ -1,7 +1,11 @@
 /// <reference types="@cloudflare/vitest-pool-workers/types" />
 
-import { SELF } from "cloudflare:test";
-import { describe, expect, it } from "vite-plus/test";
+import { applyD1Migrations, env, SELF } from "cloudflare:test";
+import { beforeEach, describe, expect, it } from "vite-plus/test";
+
+beforeEach(async () => {
+  await applyD1Migrations(env.DB, env.TEST_MIGRATIONS);
+});
 
 interface HealthResponse {
   ok: boolean;
