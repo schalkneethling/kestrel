@@ -1,88 +1,52 @@
-:root {
-  color-scheme: light dark;
-  font-family: system-ui, sans-serif;
-  line-height: 1.5;
-  color: #18181b;
-  background: #f8fafc;
+@import "tailwindcss";
+
+@theme {
+  --color-background: #eef3f6;
+  --color-foreground: #14243a;
+  --color-card: #fbfcfc;
+  --color-muted: #e9eef1;
+  --color-muted-foreground: #607083;
+  --color-border: #cfdae1;
+  --color-signal: #e7a62b;
+  --color-station-blue: #185c78;
+  --color-station-sky: #dcebf1;
+  --font-display: Georgia, "Times New Roman", serif;
 }
 
-body {
-  margin: 0;
-}
-
-.shell {
-  width: min(100% - 2rem, 64rem);
-  min-height: 100svh;
-  margin: 0 auto;
-  display: grid;
-  align-content: center;
-  gap: 2rem;
-}
-
-.hero {
-  display: grid;
-  gap: 0.75rem;
-}
-
-.eyebrow {
-  margin: 0;
-  color: #0f766e;
-  font-size: 0.875rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-h1,
-h2,
-p {
-  margin-block: 0;
-}
-
-h1 {
-  max-width: 12ch;
-  font-size: clamp(2.5rem, 8vw, 5.5rem);
-  line-height: 0.95;
-}
-
-h2 {
-  font-size: 1rem;
-}
-
-.lede {
-  max-width: 42rem;
-  color: #52525b;
-  font-size: 1.125rem;
-}
-
-ul {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  padding: 0;
-  margin: 1rem 0 0;
-  list-style: none;
-}
-
-li {
-  padding: 0.45rem 0.7rem;
-  border: 1px solid #cbd5e1;
-  border-radius: 0.375rem;
-  background: #fff;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    color: #f4f4f5;
-    background: #09090b;
+@layer base {
+  * {
+    border-color: var(--color-border);
   }
 
-  .lede {
-    color: #a1a1aa;
+  html {
+    color-scheme: light;
+    background: var(--color-background);
   }
 
-  li {
-    border-color: #3f3f46;
-    background: #18181b;
+  body {
+    min-width: 20rem;
+    min-height: 100dvh;
+    margin: 0;
+    color: var(--color-foreground);
+    background: var(--color-background);
+    font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+    font-synthesis: none;
+  }
+
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
   }
 }
