@@ -77,6 +77,7 @@ const criteria = {
 };
 
 type MockState = {
+  acceptsToken: boolean;
   companies: Array<Record<string, unknown>>;
   criteria: Array<Record<string, unknown>>;
   jobs: Array<Record<string, unknown>>;
@@ -93,6 +94,7 @@ async function json(route: Route, status: number, body?: unknown, headers = {}) 
 
 async function mockApi(page: Page) {
   const state: MockState = {
+    acceptsToken: true,
     companies: [company, unsupportedCompany],
     criteria: [criteria],
     jobs: jobs.map((job) => ({ ...job })),
@@ -112,7 +114,7 @@ async function mockApi(page: Page) {
       body,
     });
 
-    if (request.headers().authorization !== "Bearer browser-test-token") {
+    if (!state.acceptsToken || request.headers().authorization !== "Bearer browser-test-token") {
       return json(route, 401, { error: "Unauthorized" });
     }
     if (url.pathname === "/api/companies" && method === "GET") {
@@ -185,6 +187,19 @@ async function unlock(page: Page) {
 }
 
 test.describe("Kestrel dashboard acceptance", () => {
+  test("retries a previously rejected saved token", async ({ page }) => {
+    const state = await mockApi(page);
+    state.acceptsToken = false;
+    await page.addInitScript(() => localStorage.setItem("kestrel-api-token", "browser-test-token"));
+    await page.goto("/");
+
+    await expect(page.getByRole("alert")).toContainText(/saved token could not connect/i);
+    state.acceptsToken = true;
+    await page.getByRole("button", { name: /connect/i }).click();
+
+    await expect(page.getByRole("navigation", { name: /primary/i })).toBeVisible();
+  });
+
   test("stores the API token locally and sends it as a bearer credential", async ({ page }) => {
     const state = await mockApi(page);
     await unlock(page);
