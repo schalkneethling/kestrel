@@ -8,7 +8,7 @@ import type {
   PushSubscription,
   RoleLedgerEntry,
 } from "@kestrel/core";
-import { and, eq, isNotNull, lt } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, lt } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import {
   companies,
@@ -22,6 +22,23 @@ import {
 
 const parseList = (value: string) => JSON.parse(value) as string[];
 
+const toCompany = (row: typeof companies.$inferSelect): Company => ({
+  id: row.id,
+  name: row.name,
+  atsType: row.atsType as Company["atsType"],
+  boardToken: row.boardToken,
+  careersUrl: row.careersUrl,
+  status: row.status as Company["status"],
+  unsupportedPlatform: row.unsupportedPlatform,
+  notes: row.notes,
+});
+
+const toPollRun = (row: typeof pollRuns.$inferSelect): PollRun => ({
+  ...row,
+  trigger: row.trigger as PollRun["trigger"],
+  status: row.status as PollRun["status"],
+});
+
 export class D1Repository implements PersistencePort {
   readonly #db;
   readonly #now;
@@ -31,16 +48,11 @@ export class D1Repository implements PersistencePort {
   }
 
   async listCompanies(): Promise<Company[]> {
-    return (await this.#db.select().from(companies)).map((row) => ({
-      id: row.id,
-      name: row.name,
-      atsType: row.atsType as Company["atsType"],
-      boardToken: row.boardToken,
-      careersUrl: row.careersUrl,
-      status: row.status as Company["status"],
-      unsupportedPlatform: row.unsupportedPlatform,
-      notes: row.notes,
-    }));
+    return (await this.#db.select().from(companies)).map(toCompany);
+  }
+  async findCompany(id: string): Promise<Company | null> {
+    const row = await this.#db.select().from(companies).where(eq(companies.id, id)).get();
+    return row ? toCompany(row) : null;
   }
   async saveCompany(company: Company): Promise<void> {
     const now = this.#now();
@@ -48,6 +60,24 @@ export class D1Repository implements PersistencePort {
       .insert(companies)
       .values({ ...company, createdAt: now, updatedAt: now })
       .onConflictDoUpdate({ target: companies.id, set: { ...company, updatedAt: now } });
+  }
+  async deleteCompany(id: string): Promise<"deleted" | "not_found" | "conflict"> {
+    try {
+      const deleted = await this.#db
+        .delete(companies)
+        .where(eq(companies.id, id))
+        .returning({ id: companies.id });
+      return deleted.length > 0 ? "deleted" : "not_found";
+    } catch (cause) {
+      const referencedRole = await this.#db
+        .select({ stableKey: roleLedger.stableKey })
+        .from(roleLedger)
+        .where(eq(roleLedger.companyId, id))
+        .limit(1)
+        .get();
+      if (referencedRole) return "conflict";
+      throw cause;
+    }
   }
   async listJobs(companyId?: string): Promise<PersistedJob[]> {
     const query = this.#db.select().from(jobs);
@@ -71,6 +101,14 @@ export class D1Repository implements PersistencePort {
       removedAt: row.removedAt,
     }));
   }
+  async listRoleAppliedAt(stableKeys: string[]): Promise<Record<string, string | null>> {
+    if (stableKeys.length === 0) return {};
+    const rows = await this.#db
+      .select({ stableKey: roleLedger.stableKey, appliedAt: roleLedger.appliedAt })
+      .from(roleLedger)
+      .where(inArray(roleLedger.stableKey, stableKeys));
+    return Object.fromEntries(rows.map(({ stableKey, appliedAt }) => [stableKey, appliedAt]));
+  }
   async saveJob(job: PersistedJob): Promise<void> {
     const { regions, ...values } = job;
     const row = { ...values, regionsJson: JSON.stringify(regions) };
@@ -87,6 +125,14 @@ export class D1Repository implements PersistencePort {
       .insert(roleLedger)
       .values(entry)
       .onConflictDoUpdate({ target: roleLedger.stableKey, set: entry });
+  }
+  async setRoleAppliedAt(stableKey: string, appliedAt: string | null): Promise<boolean> {
+    const updated = await this.#db
+      .update(roleLedger)
+      .set({ appliedAt })
+      .where(eq(roleLedger.stableKey, stableKey))
+      .returning({ stableKey: roleLedger.stableKey });
+    return updated.length > 0;
   }
   async listCriteria(): Promise<Criteria[]> {
     return (await this.#db.select().from(criteria)).map(
@@ -125,6 +171,14 @@ export class D1Repository implements PersistencePort {
       .onConflictDoUpdate({ target: criteria.id, set: { ...row, createdAt: undefined } });
   }
 
+  async deleteCriteria(id: string): Promise<boolean> {
+    const deleted = await this.#db
+      .delete(criteria)
+      .where(eq(criteria.id, id))
+      .returning({ id: criteria.id });
+    return deleted.length > 0;
+  }
+
   async listPushSubscriptions(): Promise<PushSubscription[]> {
     return (await this.#db.select().from(pushSubscriptions)).map((row) => ({
       ...row,
@@ -160,13 +214,15 @@ export class D1Repository implements PersistencePort {
 
   async findPollRun(id: string): Promise<PollRun | null> {
     const row = await this.#db.select().from(pollRuns).where(eq(pollRuns.id, id)).get();
-    return row
-      ? {
-          ...row,
-          trigger: row.trigger as PollRun["trigger"],
-          status: row.status as PollRun["status"],
-        }
-      : null;
+    return row ? toPollRun(row) : null;
+  }
+
+  async findLatestPollRun(trigger?: PollRun["trigger"]): Promise<PollRun | null> {
+    const query = this.#db.select().from(pollRuns).orderBy(desc(pollRuns.startedAt)).limit(1);
+    const row = trigger
+      ? await query.where(eq(pollRuns.trigger, trigger)).get()
+      : await query.get();
+    return row ? toPollRun(row) : null;
   }
 
   async savePollRun(run: PollRun): Promise<void> {
