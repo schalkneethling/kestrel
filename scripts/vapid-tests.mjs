@@ -357,6 +357,26 @@ void test("provisionVapidPrivateKey stops when the exact root Worker preflight f
   assert.equal(calls[0].options.input, undefined);
 });
 
+void test("provisionVapidPrivateKey stops when no deployments exist", async () => {
+  const calls = [];
+
+  await assert.rejects(
+    provisionVapidPrivateKey({
+      publicKey: TEST_PUBLIC_KEY,
+      privateKey: TEST_PRIVATE_KEY,
+      validatePair() {},
+      async runProcess(command, args, options) {
+        calls.push({ command, args, options });
+        return { exitCode: 0, stdout: "[]" };
+      },
+    }),
+    /could not confirm.*kestrel.*no deployments exist/i,
+  );
+
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].options.input, undefined);
+});
+
 void test("provisionVapidPrivateKey verifies an ambiguous put before advising a retry", async () => {
   const logs = [];
   const calls = [];
