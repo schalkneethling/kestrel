@@ -21,6 +21,7 @@ import {
 } from "./schema";
 
 const parseList = (value: string) => JSON.parse(value) as string[];
+const D1_QUERY_PARAMETER_BATCH_SIZE = 100;
 
 const toCompany = (row: typeof companies.$inferSelect): Company => ({
   id: row.id,
@@ -103,10 +104,20 @@ export class D1Repository implements PersistencePort {
   }
   async listRoleAppliedAt(stableKeys: string[]): Promise<Record<string, string | null>> {
     if (stableKeys.length === 0) return {};
-    const rows = await this.#db
-      .select({ stableKey: roleLedger.stableKey, appliedAt: roleLedger.appliedAt })
-      .from(roleLedger)
-      .where(inArray(roleLedger.stableKey, stableKeys));
+    const rows = [];
+    for (let index = 0; index < stableKeys.length; index += D1_QUERY_PARAMETER_BATCH_SIZE) {
+      rows.push(
+        ...(await this.#db
+          .select({ stableKey: roleLedger.stableKey, appliedAt: roleLedger.appliedAt })
+          .from(roleLedger)
+          .where(
+            inArray(
+              roleLedger.stableKey,
+              stableKeys.slice(index, index + D1_QUERY_PARAMETER_BATCH_SIZE),
+            ),
+          )),
+      );
+    }
     return Object.fromEntries(rows.map(({ stableKey, appliedAt }) => [stableKey, appliedAt]));
   }
   async saveJob(job: PersistedJob): Promise<void> {

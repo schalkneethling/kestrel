@@ -57,6 +57,15 @@ function decodeKey(value: string) {
   return Uint8Array.from(atob(base64), (character) => character.charCodeAt(0));
 }
 
+class ApiRequestError extends Error {
+  readonly status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
+  }
+}
+
 function useApi(token: string) {
   return useCallback(
     async <T,>(path: string, init: RequestInit = {}) => {
@@ -73,7 +82,7 @@ function useApi(token: string) {
         const retry = payload.retryAfterSeconds
           ? ` Try again in ${payload.retryAfterSeconds} seconds.`
           : "";
-        throw new Error(`${payload.error ?? "Request failed."}${retry}`);
+        throw new ApiRequestError(`${payload.error ?? "Request failed."}${retry}`, response.status);
       }
       return payload;
     },
@@ -781,8 +790,14 @@ export function App() {
 
   useEffect(() => {
     if (!token) return;
-    void load().catch(() => {
-      setAuthError("Your saved token could not connect. Check it and try again.");
+    void load().catch((cause) => {
+      setAuthError(
+        cause instanceof ApiRequestError && cause.status === 401
+          ? "Your saved token could not connect. Check it and try again."
+          : cause instanceof Error
+            ? `The dashboard could not load its data: ${cause.message}`
+            : "The dashboard could not load its data.",
+      );
       setConnected(false);
     });
   }, [connectionAttempt, load, token]);
