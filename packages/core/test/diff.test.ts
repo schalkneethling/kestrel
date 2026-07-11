@@ -100,6 +100,18 @@ describe("diffSnapshot", () => {
     expect(result.removed).toEqual([]);
   });
 
+  it("preserves job history when recovering a missing role for an active source", () => {
+    const result = diffSnapshot({
+      current: [normalized()],
+      persisted: [persisted({ firstSeenAt: "2026-06-01T08:00:00.000Z" })],
+      ledger: [],
+      successfulCompanyIds: ["acme"],
+      observedAt,
+    });
+
+    expect(result.unchanged[0]?.role.firstSeenAt).toBe("2026-06-01T08:00:00.000Z");
+  });
+
   it("classifies a new source for a known stable role as reposted", () => {
     const current = normalized({ atsJobId: "ats-2", sourceKey: "greenhouse:acme:ats-2" });
     const result = diffSnapshot({

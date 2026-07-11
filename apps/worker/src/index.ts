@@ -1,6 +1,6 @@
 import "@varlock/cloudflare-integration/init";
 import { createAdapterRegistry, SUPPORTED_ATS_TYPES } from "@kestrel/core";
-import { classifyWithCore, matchesPersistedJob, runPollCycle } from "./cycle";
+import { classifyWithCore, createCronHandler, matchesPersistedJob } from "./cycle";
 import { D1Repository } from "./db/repository";
 
 interface Env {
@@ -69,11 +69,11 @@ export default {
         json: () => response.json(),
       };
     };
-    await runPollCycle({
+    await createCronHandler({
       persistence: new D1Repository(env.DB),
       adapters: createAdapterRegistry(http),
       classifySnapshot: classifyWithCore,
       matchesCriteria: matchesPersistedJob,
-    });
+    })();
   },
 };

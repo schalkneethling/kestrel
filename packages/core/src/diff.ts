@@ -28,12 +28,16 @@ export type DiffSnapshotInput = {
   observedAt: string;
 };
 
-function createRole(job: NormalizedJob, observedAt: string): RoleLedgerEntry {
+function createRole(
+  job: NormalizedJob,
+  observedAt: string,
+  firstSeenAt: string = observedAt,
+): RoleLedgerEntry {
   return {
     stableKey: job.stableKey,
     companyId: job.companyId,
     title: job.title,
-    firstSeenAt: observedAt,
+    firstSeenAt,
     lastSeenAt: observedAt,
     lastSourceKey: job.sourceKey,
     repostCount: 0,
@@ -80,7 +84,7 @@ export function diffSnapshot(input: DiffSnapshotInput): SnapshotDiff {
         previousJob,
         role: priorRole
           ? observeRole(priorRole, job, input.observedAt, false)
-          : createRole(job, input.observedAt),
+          : createRole(job, input.observedAt, previousJob.firstSeenAt),
       });
     } else if (priorRole) {
       result.reposted.push({

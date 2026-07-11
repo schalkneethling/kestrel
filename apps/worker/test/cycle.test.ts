@@ -10,6 +10,7 @@ import type {
 import { describe, expect, it, vi } from "vite-plus/test";
 import {
   classifyWithCore,
+  matchesPersistedJob,
   runPollCycle,
   runRetentionSweep,
   type SnapshotClassification,
@@ -163,6 +164,45 @@ describe("poll cycle", () => {
 
     expect(classifySnapshot).not.toHaveBeenCalled();
     expect(pollRuns.at(-1)).toMatchObject({ status: "succeeded", jobsRemoved: 0 });
+  });
+
+  it("classifies and matches a production-format source through the real core path", async () => {
+    const { port, jobs, notifications } = persistence({
+      listJobs: async () => [],
+      findRole: async () => null,
+      listCriteria: async () => [
+        { ...criteriaFixture, titleIncludes: ["engineer"], locationHardExcludes: [] },
+      ],
+    });
+    const adapter: AtsAdapter = {
+      type: "greenhouse",
+      fetchJobs: async () => ({
+        status: "ok",
+        jobs: [
+          {
+            atsJobId: "456",
+            title: "Frontend Engineer",
+            locationRaw: "Remote - US",
+            absoluteUrl: "https://example.com/jobs/456",
+          },
+        ],
+      }),
+    };
+    const ids = ["poll-1", "job-1", "notification-1"];
+
+    await runPollCycle({
+      persistence: port,
+      adapters: new Map([["greenhouse", adapter]]),
+      classifySnapshot: classifyWithCore,
+      matchesCriteria: matchesPersistedJob,
+      now: dates,
+      createId: () => ids.shift() ?? "extra",
+    });
+
+    expect(jobs[0]?.sourceKey).toBe(`${companyFixture.id}:greenhouse:456`);
+    expect(notifications).toEqual([
+      expect.objectContaining({ jobId: "job-1", eventType: "new", status: "pending" }),
+    ]);
   });
 });
 
