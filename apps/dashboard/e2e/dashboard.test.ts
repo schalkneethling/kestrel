@@ -346,4 +346,16 @@ test.describe("Kestrel dashboard acceptance", () => {
     await purge.click();
     await expect(page.getByRole("alert")).toContainText(/cooling down|try again.*60/i);
   });
+
+  test("reloads jobs after a successful refresh", async ({ page }) => {
+    const state = await mockApi(page);
+    state.jobs = [];
+    await unlock(page);
+    await expect(page.getByText(/no roles match/i)).toBeVisible();
+
+    state.jobs.push(...jobs);
+    await page.getByRole("button", { name: /refresh jobs/i }).click();
+
+    await expect(page.getByRole("link", { name: "Frontend Engineer" })).toBeVisible();
+  });
 });
