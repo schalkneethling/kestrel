@@ -754,6 +754,7 @@ function AppShell({
 
 export function App() {
   const [token, setToken] = useState(() => localStorage.getItem(tokenKey) ?? "");
+  const [connectionAttempt, setConnectionAttempt] = useState(0);
   const [connected, setConnected] = useState(false);
   const [authError, setAuthError] = useState("");
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -784,7 +785,7 @@ export function App() {
       setAuthError("Your saved token could not connect. Check it and try again.");
       setConnected(false);
     });
-  }, [load, token]);
+  }, [connectionAttempt, load, token]);
 
   const currentView = useMemo(() => {
     if (view === "companies")
@@ -887,6 +888,7 @@ export function App() {
     localStorage.setItem(tokenKey, nextToken);
     setAuthError("");
     setToken(nextToken);
+    setConnectionAttempt((attempt) => attempt + 1);
   }
 
   async function maintenance(path: string, success: string) {
