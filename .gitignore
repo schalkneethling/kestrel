@@ -13,6 +13,7 @@ lerna-debug.log*
 !.env.schema
 
 node_modules
+.pnpm-store/
 dist
 dist-types
 dist-ssr

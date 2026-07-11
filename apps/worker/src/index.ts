@@ -1,5 +1,7 @@
 import "@varlock/cloudflare-integration/init";
-import { SUPPORTED_ATS_TYPES } from "@kestrel/core";
+import { createAdapterRegistry, SUPPORTED_ATS_TYPES } from "@kestrel/core";
+import { classifyWithCore, createCronHandler, matchesPersistedJob } from "./cycle";
+import { D1Repository } from "./db/repository";
 
 interface Env {
   API_BEARER_SECRET?: string;
@@ -58,7 +60,20 @@ export default {
     return json({ error: "Not found" }, { status: 404 });
   },
 
-  async scheduled(): Promise<void> {
-    // E3.6 will wire the poll cycle here after the engine exists.
+  async scheduled(_controller: ScheduledController, env: Env): Promise<void> {
+    const http = async ({ url, headers }: { url: string; headers: Record<string, string> }) => {
+      const response = await fetch(url, { headers });
+      return {
+        status: response.status,
+        headers: Object.fromEntries(response.headers.entries()),
+        json: () => response.json(),
+      };
+    };
+    await createCronHandler({
+      persistence: new D1Repository(env.DB),
+      adapters: createAdapterRegistry(http),
+      classifySnapshot: classifyWithCore,
+      matchesCriteria: matchesPersistedJob,
+    })();
   },
 };
