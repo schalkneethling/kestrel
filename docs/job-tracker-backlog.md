@@ -21,11 +21,13 @@ Varlock-managed config, and test harness.
 
 ## E1 - Data Model And Migrations
 
-Goal: create D1 migrations and repository modules for all tables.
+Goal: create Drizzle-managed D1 migrations and a Worker repository
+implementation for all tables, behind the domain persistence boundary described
+in ADR 0001.
 
 - E1.1 Core tables.
 - E1.2 `role_ledger` table.
-- E1.3 Repository layer.
+- E1.3 Domain persistence port and Drizzle/D1 repository layer.
 - E1.4 Seed and fixtures.
 
 ## E2 - ATS Adapters And Normalization

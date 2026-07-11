@@ -26,7 +26,8 @@ The system runs on Cloudflare:
 
 - Cloudflare Workers for API, scheduling, and static asset serving.
 - Cloudflare Cron Triggers for polling.
-- Cloudflare D1 for SQLite storage.
+- Cloudflare D1 for SQLite storage, accessed by the Worker persistence layer
+  through Drizzle.
 - Hono for HTTP routing unless a plain Worker fetch handler is sufficient.
 - React 19 and Vite for the dashboard.
 - Tailwind v4 and shadcn/ui, used idiomatically for the prototype.
@@ -49,9 +50,14 @@ The repository is organized around three deployable or reusable areas:
 Core modules must not depend on Worker or DOM globals. That boundary keeps the
 diff engine and matching logic testable in plain Vitest.
 
+The target architecture and data flow are documented in
+[architecture.md](architecture.md). ADR 0001 defines the domain and persistence
+boundary that allows the data model and ATS adapter work to proceed in parallel.
+
 ## Data Model
 
-D1 migrations must define these tables:
+Drizzle is the single source for the D1 schema and generates the versioned SQL
+migrations. D1 migrations must define these tables:
 
 - `companies`
 - `jobs`

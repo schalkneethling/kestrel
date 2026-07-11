@@ -15,6 +15,18 @@ Docs are local at `node_modules/vite-plus/docs` or online at https://viteplus.de
 
 <!--VITE PLUS END-->
 
+## TypeScript Conventions
+
+- Prefer `type` aliases to `interface` for application and domain shapes.
+- Use an `interface` only when it is clearly the right boundary, such as a
+  contract with multiple implementations or intentional declaration merging.
+- Let TypeScript infer types from local values, return expressions, and simple
+  function boundaries. Add explicit annotations only where inference is
+  insufficient, a public contract needs documenting, or an annotation improves
+  a meaningful compiler diagnostic.
+- Do not add redundant annotations or type abstractions solely for perceived
+  formality.
+
 <!-- calavera-agent-bootstrap:start -->
 
 # Calavera Agent Guidance
