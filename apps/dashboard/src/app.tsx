@@ -11,7 +11,15 @@ import {
   Settings2,
   Trash2,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react";
 import type { Company, Criteria, PersistedJob } from "@kestrel/core";
 import { Button } from "./components/ui/button";
 import { Checkbox } from "./components/ui/checkbox";
@@ -27,7 +35,7 @@ import { Input, Textarea } from "./components/ui/input";
 import { Label } from "./components/ui/label";
 import { cn } from "./lib/utils";
 
-type Job = PersistedJob & { appliedAt: string | null };
+type Job = PersistedJob & { appliedAt: string | null; matchedCriteriaIds?: string[] };
 type View = "companies" | "jobs" | "criteria" | "notifications";
 type Notice = { kind: "status" | "alert"; message: string };
 
@@ -395,10 +403,18 @@ function JobsView({
   jobs,
   companies,
   onApplied,
+  jobView,
+  onJobViewChange,
+  criteria,
+  onManageCriteria,
 }: {
   jobs: Job[];
   companies: Company[];
   onApplied: (job: Job, applied: boolean) => Promise<void>;
+  jobView: "matching" | "all";
+  onJobViewChange: (view: "matching" | "all") => void;
+  criteria: Criteria[];
+  onManageCriteria: () => void;
 }) {
   const [status, setStatus] = useState("all");
   const [applied, setApplied] = useState("all");
@@ -423,6 +439,29 @@ function JobsView({
         className="my-6 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card p-3"
       >
         <Filter className="size-4 text-muted-foreground" />
+        <fieldset className="flex items-center gap-2">
+          <legend className="sr-only">Job feed</legend>
+          <Label className="flex items-center gap-2">
+            <input
+              type="radio"
+              name="job-view"
+              value="matching"
+              checked={jobView === "matching"}
+              onChange={() => onJobViewChange("matching")}
+            />
+            Matching jobs
+          </Label>
+          <Label className="flex items-center gap-2">
+            <input
+              type="radio"
+              name="job-view"
+              value="all"
+              checked={jobView === "all"}
+              onChange={() => onJobViewChange("all")}
+            />
+            All jobs
+          </Label>
+        </fieldset>
         <Label htmlFor="status-filter">Status</Label>
         <select
           id="status-filter"
@@ -488,6 +527,15 @@ function JobsView({
                     .filter(Boolean)
                     .join(" · ")}
                 </p>
+                {job.matchedCriteriaIds?.length ? (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Matches{" "}
+                    {job.matchedCriteriaIds
+                      .map((id) => criteria.find((item) => item.id === id)?.name)
+                      .filter(Boolean)
+                      .join(", ")}
+                  </p>
+                ) : null}
                 {job.descriptionSnippet ? (
                   <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
                     {job.descriptionSnippet}
@@ -510,7 +558,23 @@ function JobsView({
           ))}
         </div>
       ) : (
-        <EmptyState>No roles match these filters.</EmptyState>
+        <EmptyState>
+          {jobView === "matching" && !criteria.some((item) => item.enabled) ? (
+            <>
+              No criteria are enabled.{" "}
+              <a
+                href="#criteria"
+                className="font-semibold text-station-blue underline"
+                onClick={onManageCriteria}
+              >
+                Create or enable criteria
+              </a>{" "}
+              to build your matching feed.
+            </>
+          ) : (
+            "No roles match these filters."
+          )}
+        </EmptyState>
       )}
     </>
   );
@@ -519,92 +583,145 @@ function JobsView({
 function CriteriaView({
   criteria,
   onSave,
+  onCreate,
+  onDelete,
+  onError,
 }: {
-  criteria?: Criteria;
+  criteria: Criteria[];
   onSave: (criteria: Criteria) => Promise<void>;
+  onCreate: (criteria: Omit<Criteria, "id">) => Promise<void>;
+  onDelete: (criteria: Criteria) => Promise<void>;
+  onError: (cause: unknown) => void;
 }) {
-  if (!criteria)
-    return (
-      <>
-        <PageHeader eyebrow="Matching logic" title="Criteria" />
-        <EmptyState>No criteria set exists yet.</EmptyState>
-      </>
-    );
-  const currentCriteria = criteria;
-  async function submit(event: FormEvent<HTMLFormElement>) {
+  const [creating, setCreating] = useState(false);
+
+  async function submit(event: FormEvent<HTMLFormElement>, current?: Criteria) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    await onSave({
-      ...currentCriteria,
+    const values = {
       name: formString(data, "name"),
       enabled: data.get("enabled") === "on",
       titleIncludes: commaList(formString(data, "titleIncludes")),
       titleExcludes: commaList(formString(data, "titleExcludes")),
       locationHardExcludes: commaList(formString(data, "locationHardExcludes")),
       regions: commaList(formString(data, "regions")),
-    });
+    };
+    try {
+      if (current) await onSave({ ...current, ...values });
+      else {
+        await onCreate(values);
+        setCreating(false);
+      }
+    } catch (cause) {
+      onError(cause);
+    }
   }
+
+  async function remove(item: Criteria) {
+    try {
+      await onDelete(item);
+    } catch (cause) {
+      onError(cause);
+    }
+  }
+
+  const editor = (item?: Criteria) => {
+    const prefix = item?.id ?? "new-criteria";
+    return (
+      <form key={prefix} onSubmit={(event) => void submit(event, item)} className="max-w-3xl">
+        <fieldset className="grid gap-5 rounded-xl border border-border bg-card p-6 shadow-sm">
+          <legend className="px-2 font-display text-2xl">
+            {item ? item.name : "New rule set"}
+          </legend>
+          <div className="grid items-end gap-4 sm:grid-cols-[1fr_auto]">
+            <Field id={`${prefix}-name`} label="Name">
+              <Input id={`${prefix}-name`} name="name" defaultValue={item?.name} required />
+            </Field>
+            <Label className="flex h-10 items-center gap-2">
+              <Checkbox name="enabled" defaultChecked={item?.enabled ?? true} /> Enabled
+            </Label>
+          </div>
+          <Field
+            id={`${prefix}-includes`}
+            label="Title includes"
+            hint="A role must contain at least one of these terms."
+          >
+            <Textarea
+              id={`${prefix}-includes`}
+              name="titleIncludes"
+              defaultValue={item?.titleIncludes.join(", ")}
+            />
+          </Field>
+          <Field
+            id={`${prefix}-excludes`}
+            label="Title excludes"
+            hint="Reject titles containing any of these terms."
+          >
+            <Textarea
+              id={`${prefix}-excludes`}
+              name="titleExcludes"
+              defaultValue={item?.titleExcludes.join(", ")}
+            />
+          </Field>
+          <Field
+            id={`${prefix}-locations`}
+            label="Location hard excludes"
+            hint="Locations Kestrel should never match."
+          >
+            <Textarea
+              id={`${prefix}-locations`}
+              name="locationHardExcludes"
+              defaultValue={item?.locationHardExcludes.join(", ")}
+            />
+          </Field>
+          <Field
+            id={`${prefix}-regions`}
+            label="Regions"
+            hint="Informational labels used to highlight regional context; they do not exclude a job."
+          >
+            <Textarea
+              id={`${prefix}-regions`}
+              name="regions"
+              defaultValue={item?.regions.join(", ")}
+            />
+          </Field>
+          <div className="flex gap-2">
+            <Button type="submit">
+              <Save className="size-4" />
+              {item ? "Save criteria" : "Create criteria"}
+            </Button>
+            {item ? (
+              <Button type="button" variant="danger" onClick={() => void remove(item)}>
+                <Trash2 className="size-4" />
+                Delete
+              </Button>
+            ) : (
+              <Button type="button" variant="secondary" onClick={() => setCreating(false)}>
+                Cancel
+              </Button>
+            )}
+          </div>
+        </fieldset>
+      </form>
+    );
+  };
   return (
     <>
       <PageHeader
         eyebrow="Matching logic"
         title="Criteria"
-        description="Shape the signal. Separate terms with commas."
+        description="Shape the signal with one or more rule sets. Separate terms with commas."
+        action={
+          !creating ? <Button onClick={() => setCreating(true)}>Add criteria</Button> : undefined
+        }
       />
-      <form onSubmit={submit} className="mt-6 max-w-3xl">
-        <fieldset className="grid gap-5 rounded-xl border border-border bg-card p-6 shadow-sm">
-          <legend className="px-2 font-display text-2xl">Rule set</legend>
-          <div className="grid items-end gap-4 sm:grid-cols-[1fr_auto]">
-            <Field id="criteria-name" label="Name">
-              <Input id="criteria-name" name="name" defaultValue={criteria.name} />
-            </Field>
-            <Label className="flex h-10 items-center gap-2">
-              <Checkbox name="enabled" defaultChecked={criteria.enabled} />
-              Enabled
-            </Label>
-          </div>
-          <Field
-            id="title-includes"
-            label="Title includes"
-            hint="A role must contain at least one of these terms."
-          >
-            <Textarea
-              id="title-includes"
-              name="titleIncludes"
-              defaultValue={criteria.titleIncludes.join(", ")}
-            />
-          </Field>
-          <Field
-            id="title-excludes"
-            label="Title excludes"
-            hint="Reject titles containing any of these terms."
-          >
-            <Textarea
-              id="title-excludes"
-              name="titleExcludes"
-              defaultValue={criteria.titleExcludes.join(", ")}
-            />
-          </Field>
-          <Field
-            id="location-hard-excludes"
-            label="Location hard excludes"
-            hint="Locations Kestrel should never match."
-          >
-            <Textarea
-              id="location-hard-excludes"
-              name="locationHardExcludes"
-              defaultValue={criteria.locationHardExcludes.join(", ")}
-            />
-          </Field>
-          <Field id="regions" label="Regions" hint="Regions to highlight in the feed.">
-            <Textarea id="regions" name="regions" defaultValue={criteria.regions.join(", ")} />
-          </Field>
-          <Button type="submit" className="justify-self-start">
-            <Save className="size-4" />
-            Save criteria
-          </Button>
-        </fieldset>
-      </form>
+      <div className="mt-6 grid gap-6">
+        {creating ? editor() : null}
+        {criteria.map((item) => editor(item))}
+        {!criteria.length && !creating ? (
+          <EmptyState>No criteria set exists yet.</EmptyState>
+        ) : null}
+      </div>
     </>
   );
 }
@@ -769,24 +886,33 @@ export function App() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [criteria, setCriteria] = useState<Criteria[]>([]);
+  const [jobView, setJobView] = useState<"matching" | "all">("matching");
   const [view, setView] = useState<View>(() => {
     const hash = location.hash.slice(1);
     return views.some(({ id }) => id === hash) ? (hash as View) : "jobs";
   });
   const [notice, setNotice] = useState<Notice | null>(null);
+  const jobsRequest = useRef(0);
   const api = useApi(token);
 
+  const loadJobs = useCallback(async () => {
+    const request = ++jobsRequest.current;
+    const result = await api<{ jobs: Job[] }>(
+      jobView === "all" ? "/api/jobs?scope=all" : "/api/jobs",
+    );
+    if (request === jobsRequest.current) setJobs(result.jobs);
+  }, [api, jobView]);
+
   const load = useCallback(async () => {
-    const [companyResult, jobResult, criteriaResult] = await Promise.all([
+    const [companyResult, criteriaResult] = await Promise.all([
       api<{ companies: Company[] }>("/api/companies"),
-      api<{ jobs: Job[] }>("/api/jobs"),
       api<{ criteria: Criteria[] }>("/api/criteria"),
+      loadJobs(),
     ]);
     setCompanies(companyResult.companies);
-    setJobs(jobResult.jobs);
     setCriteria(criteriaResult.criteria);
     setConnected(true);
-  }, [api]);
+  }, [api, loadJobs]);
 
   useEffect(() => {
     if (!token) return;
@@ -820,15 +946,40 @@ export function App() {
     if (view === "criteria")
       return (
         <CriteriaView
-          criteria={criteria[0]}
+          criteria={criteria}
           onSave={async (item) => {
             const result = await api<{ criteria: Criteria }>(
               `/api/criteria/${encodeURIComponent(item.id)}`,
               { method: "PUT", body: JSON.stringify(item) },
             );
-            setCriteria([result.criteria]);
+            setCriteria((items) =>
+              items.map((current) => (current.id === item.id ? result.criteria : current)),
+            );
+            await loadJobs();
             setNotice({ kind: "status", message: "Criteria saved." });
           }}
+          onCreate={async (item) => {
+            const result = await api<{ criteria: Criteria }>("/api/criteria", {
+              method: "POST",
+              body: JSON.stringify(item),
+            });
+            setCriteria((items) => [...items, result.criteria]);
+            await loadJobs();
+            setNotice({ kind: "status", message: "Criteria created." });
+          }}
+          onDelete={async (item) => {
+            await api(`/api/criteria/${encodeURIComponent(item.id)}`, { method: "DELETE" });
+            setCriteria((items) => items.filter((current) => current.id !== item.id));
+            await loadJobs();
+            setNotice({ kind: "status", message: "Criteria deleted." });
+          }}
+          onError={(cause) =>
+            setNotice({
+              kind: "alert",
+              message:
+                cause instanceof Error ? cause.message : "Could not update matching criteria.",
+            })
+          }
         />
       );
     if (view === "notifications")
@@ -865,6 +1016,10 @@ export function App() {
       <JobsView
         jobs={jobs}
         companies={companies}
+        criteria={criteria}
+        jobView={jobView}
+        onJobViewChange={setJobView}
+        onManageCriteria={() => setView("criteria")}
         onApplied={async (job, applied) => {
           setJobs((items) =>
             items.map((item) =>
@@ -897,7 +1052,7 @@ export function App() {
         }}
       />
     );
-  }, [api, companies, criteria, jobs, view]);
+  }, [api, companies, criteria, jobView, jobs, loadJobs, view]);
 
   function connect(nextToken: string) {
     localStorage.setItem(tokenKey, nextToken);

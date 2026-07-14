@@ -22,3 +22,23 @@ export function matchesCriteria(job: NormalizedJob, criteria: Criteria): boolean
 
   return !containsAny(job.locationRaw, locationHardExcludes);
 }
+
+export type CriteriaMatch = {
+  matches: boolean;
+  matchedCriteriaIds: string[];
+};
+
+/**
+ * Evaluates a job against all saved criteria. With no enabled criteria there is
+ * no match; otherwise a match from any enabled set is sufficient.
+ */
+export function matchCriteria(job: NormalizedJob, criteria: readonly Criteria[]): CriteriaMatch {
+  const matchedCriteriaIds = criteria
+    .filter((value) => matchesCriteria(job, value))
+    .map(({ id }) => id);
+  return { matches: matchedCriteriaIds.length > 0, matchedCriteriaIds };
+}
+
+export function matchesAnyCriteria(job: NormalizedJob, criteria: readonly Criteria[]): boolean {
+  return matchCriteria(job, criteria).matches;
+}
