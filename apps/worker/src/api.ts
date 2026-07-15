@@ -1,6 +1,12 @@
 import { createAdapterRegistry, SUPPORTED_ATS_TYPES } from "@kestrel/core";
 import type { Company, Criteria, PushSubscription } from "@kestrel/core";
-import { classifyWithCore, matchesPersistedJob, runPollCycle, runRetentionSweep } from "./cycle";
+import {
+  classifyWithCore,
+  matchPersistedJob,
+  matchesPersistedJob,
+  runPollCycle,
+  runRetentionSweep,
+} from "./cycle";
 import { D1Repository } from "./db/repository";
 
 export type Env = {
@@ -216,13 +222,18 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
 
     if (url.pathname === "/api/jobs" && method === "GET") {
       const jobs = await repository.listJobs(url.searchParams.get("companyId") ?? undefined);
+      const criteria = await repository.listCriteria();
       const appliedAtByStableKey = await repository.listRoleAppliedAt(
         jobs.map(({ stableKey }) => stableKey),
       );
-      const enriched = jobs.map((job) => ({
-        ...job,
-        appliedAt: appliedAtByStableKey[job.stableKey] ?? null,
-      }));
+      const enriched = jobs.map((job) => {
+        const { matchedCriteriaIds } = matchPersistedJob(criteria, job);
+        return {
+          ...job,
+          appliedAt: appliedAtByStableKey[job.stableKey] ?? null,
+          matchedCriteriaIds,
+        };
+      });
       const status = url.searchParams.get("status");
       const filtered =
         status === "active"
@@ -234,7 +245,11 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
               : status === "unapplied"
                 ? enriched.filter((job) => job.appliedAt === null)
                 : enriched;
-      return json({ jobs: filtered });
+      const scoped =
+        url.searchParams.get("scope") === "all"
+          ? filtered
+          : filtered.filter((job) => job.matchedCriteriaIds.length > 0);
+      return json({ jobs: scoped });
     }
     const applied = url.pathname.match(/^\/api\/jobs\/([^/]+)\/applied$/);
     if (applied && (method === "PUT" || method === "PATCH")) {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vite-plus/test";
-import { matchesCriteria } from "../src/index";
+import { matchCriteria, matchesAnyCriteria, matchesCriteria } from "../src/index";
 import type { Criteria, NormalizedJob } from "../src/index";
 
 const job = (overrides: Partial<NormalizedJob> = {}): NormalizedJob => ({
@@ -13,6 +13,30 @@ const job = (overrides: Partial<NormalizedJob> = {}): NormalizedJob => ({
   stableKey: "stable-1",
   location: { rawLabel: "Remote - EMEA", remoteScope: "remote", regions: ["emea"] },
   ...overrides,
+});
+
+describe("matching a job against saved criteria", () => {
+  it("does not match when no criteria exist or every criteria set is disabled", () => {
+    expect(matchesAnyCriteria(job(), [])).toBe(false);
+    expect(matchesAnyCriteria(job(), [criteria({ enabled: false })])).toBe(false);
+  });
+
+  it("matches when at least one enabled criteria set matches", () => {
+    const result = matchCriteria(job(), [
+      criteria({ id: "backend", titleIncludes: ["backend"] }),
+      criteria({ id: "frontend", titleIncludes: ["frontend"] }),
+      criteria({ id: "disabled", enabled: false }),
+    ]);
+
+    expect(result).toEqual({ matches: true, matchedCriteriaIds: ["frontend"] });
+    expect(matchesAnyCriteria(job(), [criteria({ titleIncludes: ["frontend"] })])).toBe(true);
+  });
+
+  it("keeps desired regions informational across multiple criteria sets", () => {
+    expect(
+      matchCriteria(job(), [criteria({ id: "another-region", regions: ["us", "za"] })]),
+    ).toEqual({ matches: true, matchedCriteriaIds: ["another-region"] });
+  });
 });
 
 const criteria = (overrides: Partial<Criteria> = {}): Criteria => ({

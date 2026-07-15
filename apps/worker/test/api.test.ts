@@ -146,10 +146,53 @@ describe("company API", () => {
 });
 
 describe("jobs API", () => {
+  it("defaults to enabled criteria matches and exposes an explicit all-jobs scope", async () => {
+    await seedJob();
+
+    await expect(api("/api/jobs").then((response) => response.json())).resolves.toEqual({
+      jobs: [],
+    });
+
+    await api("/api/criteria", { method: "POST", body: json(criteriaFixture) });
+    await expect(api("/api/jobs").then((response) => response.json())).resolves.toEqual({
+      jobs: [
+        expect.objectContaining({
+          ...jobFixture,
+          appliedAt: null,
+          matchedCriteriaIds: [criteriaFixture.id],
+        }),
+      ],
+    });
+
+    await api(`/api/criteria/${criteriaFixture.id}`, {
+      method: "PUT",
+      body: json({ ...criteriaFixture, enabled: false }),
+    });
+    await expect(api("/api/jobs").then((response) => response.json())).resolves.toEqual({
+      jobs: [],
+    });
+    await expect(api("/api/jobs?scope=all").then((response) => response.json())).resolves.toEqual({
+      jobs: [expect.objectContaining({ ...jobFixture, matchedCriteriaIds: [] })],
+    });
+  });
+
+  it("matches any enabled criteria and treats regions as informational", async () => {
+    await seedJob();
+    const nonmatch = { ...criteriaFixture, id: "nonmatch", titleIncludes: ["designer"] };
+    const regionMismatch = { ...criteriaFixture, id: "region-mismatch", regions: ["emea"] };
+    await api("/api/criteria", { method: "POST", body: json(nonmatch) });
+    await api("/api/criteria", { method: "POST", body: json(regionMismatch) });
+
+    const response = await api("/api/jobs");
+    await expect(response.json()).resolves.toEqual({
+      jobs: [expect.objectContaining({ matchedCriteriaIds: [regionMismatch.id] })],
+    });
+  });
+
   it("filters jobs and persists applied state on the durable role", async () => {
     await seedJob();
 
-    const list = await api(`/api/jobs?companyId=${companyFixture.id}&status=active`);
+    const list = await api(`/api/jobs?companyId=${companyFixture.id}&status=active&scope=all`);
     expect(list.status).toBe(200);
     await expect(list.json()).resolves.toEqual({
       jobs: [expect.objectContaining({ ...jobFixture, appliedAt: null })],

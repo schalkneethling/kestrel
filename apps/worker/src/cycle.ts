@@ -11,7 +11,7 @@ import type {
 import {
   diffSnapshot,
   isSupportedAtsType,
-  matchesCriteria as coreMatchesCriteria,
+  matchCriteria as coreMatchCriteria,
   normalizeJob,
 } from "@kestrel/core";
 
@@ -238,28 +238,30 @@ export const classifyWithCore: ClassifySnapshot = async ({
   return { observations, removedJobs: diff.removed.map(({ job }) => job) };
 };
 
+const normalizedFromPersisted = (job: PersistedJob): NormalizedJob => ({
+  companyId: job.companyId,
+  atsType: job.sourceKey.split(":")[1] as SupportedAtsType,
+  atsJobId: job.atsJobId,
+  sourceKey: job.sourceKey,
+  stableKey: job.stableKey,
+  title: job.title,
+  locationRaw: job.locationRaw,
+  absoluteUrl: job.absoluteUrl,
+  ...(job.department === null ? {} : { department: job.department }),
+  ...(job.employmentType === null ? {} : { employmentType: job.employmentType }),
+  ...(job.descriptionSnippet === null ? {} : { descriptionSnippet: job.descriptionSnippet }),
+  location: {
+    remoteScope: job.remoteScope,
+    regions: job.regions,
+    rawLabel: job.locationRaw,
+  },
+});
+
+export const matchPersistedJob = (criteria: readonly Criteria[], job: PersistedJob) =>
+  coreMatchCriteria(normalizedFromPersisted(job), criteria);
+
 export const matchesPersistedJob: CriteriaMatcher = (criteria, job) =>
-  coreMatchesCriteria(
-    {
-      companyId: job.companyId,
-      atsType: job.sourceKey.split(":")[1] as SupportedAtsType,
-      atsJobId: job.atsJobId,
-      sourceKey: job.sourceKey,
-      stableKey: job.stableKey,
-      title: job.title,
-      locationRaw: job.locationRaw,
-      absoluteUrl: job.absoluteUrl,
-      ...(job.department === null ? {} : { department: job.department }),
-      ...(job.employmentType === null ? {} : { employmentType: job.employmentType }),
-      ...(job.descriptionSnippet === null ? {} : { descriptionSnippet: job.descriptionSnippet }),
-      location: {
-        remoteScope: job.remoteScope,
-        regions: job.regions,
-        rawLabel: job.locationRaw,
-      },
-    },
-    criteria,
-  );
+  matchPersistedJob([criteria], job).matches;
 
 export function createCronHandler(dependencies: CycleDependencies) {
   return async () => {

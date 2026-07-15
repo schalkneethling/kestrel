@@ -44,6 +44,7 @@ const jobs = [
     lastSeenAt: "2026-07-11T08:00:00.000Z",
     removedAt: null,
     appliedAt: null,
+    matchedCriteriaIds: ["criteria-default"],
   },
   {
     id: "job-456",
@@ -82,6 +83,7 @@ type MockState = {
   criteria: Array<Record<string, unknown>>;
   jobs: Array<Record<string, unknown>>;
   jobsStatus: number;
+  criteriaMutationStatus: number;
   requests: Array<{ method: string; path: string; authorization: string | null; body: unknown }>;
 };
 
@@ -100,6 +102,7 @@ async function mockApi(page: Page) {
     criteria: [criteria],
     jobs: jobs.map((job) => ({ ...job })),
     jobsStatus: 200,
+    criteriaMutationStatus: 200,
     requests: [],
   };
   const cooldowns = new Set<string>();
@@ -138,6 +141,17 @@ async function mockApi(page: Page) {
         return json(route, state.jobsStatus, { error: "Internal server error" });
       }
       let result = state.jobs;
+      if (url.searchParams.get("scope") !== "all") {
+        result = result.filter((job) =>
+          state.criteria.some(
+            (item) =>
+              item.enabled &&
+              (item.titleIncludes as string[]).some((term) =>
+                String(job.title).toLowerCase().includes(term),
+              ),
+          ),
+        );
+      }
       const status = url.searchParams.get("status");
       const companyId = url.searchParams.get("companyId");
       const applied = url.searchParams.get("applied");
@@ -156,9 +170,24 @@ async function mockApi(page: Page) {
     if (url.pathname === "/api/criteria" && method === "GET") {
       return json(route, 200, { criteria: state.criteria });
     }
+    if (url.pathname === "/api/criteria" && method === "POST") {
+      if (state.criteriaMutationStatus !== 200) {
+        return json(route, state.criteriaMutationStatus, { error: "Could not save criteria" });
+      }
+      const created = { ...(body as object), id: `criteria-${state.criteria.length + 1}` };
+      state.criteria.push(created);
+      return json(route, 201, { criteria: created });
+    }
     if (url.pathname.startsWith("/api/criteria/") && method === "PUT") {
-      state.criteria[0] = body as Record<string, unknown>;
-      return json(route, 200, { criteria: state.criteria[0] });
+      const id = decodeURIComponent(url.pathname.split("/").at(-1)!);
+      const index = state.criteria.findIndex((item) => item.id === id);
+      state.criteria[index] = body as Record<string, unknown>;
+      return json(route, 200, { criteria: state.criteria[index] });
+    }
+    if (url.pathname.startsWith("/api/criteria/") && method === "DELETE") {
+      const id = decodeURIComponent(url.pathname.split("/").at(-1)!);
+      state.criteria = state.criteria.filter((item) => item.id !== id);
+      return json(route, 204);
     }
     if (url.pathname === "/api/push/public-key") {
       return json(route, 200, { publicKey: "BEl6-test-public-key" });
@@ -205,16 +234,15 @@ test.describe("Kestrel dashboard acceptance", () => {
     await expect(page.getByRole("navigation", { name: /primary/i })).toBeVisible();
   });
 
-  test("distinguishes a data failure from an invalid token", async ({ page }) => {
+  test("keeps the dashboard connected when a job-view refresh fails", async ({ page }) => {
     const state = await mockApi(page);
+    await unlock(page);
     state.jobsStatus = 500;
-    await page.addInitScript(() => localStorage.setItem("kestrel-api-token", "browser-test-token"));
-    await page.goto("/");
+    await page.getByRole("radio", { name: "All jobs" }).check();
 
-    await expect(page.getByRole("alert")).toContainText(
-      /dashboard could not load its data.*internal server error/i,
-    );
-    await expect(page.getByRole("alert")).not.toContainText(/saved token could not connect/i);
+    await expect(page.getByRole("alert")).toContainText(/internal server error/i);
+    await expect(page.getByRole("navigation", { name: /primary/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Jobs" })).toBeVisible();
   });
 
   test("stores the API token locally and sends it as a bearer credential", async ({ page }) => {
@@ -279,7 +307,12 @@ test.describe("Kestrel dashboard acceptance", () => {
       "href",
       "https://example.com/jobs/123",
     );
+    await expect(page.getByText("Product Designer", { exact: true })).toBeHidden();
+    await page.getByRole("radio", { name: "All jobs" }).check();
     await expect(page.getByText("Product Designer", { exact: true })).toBeVisible();
+    await expect
+      .poll(() => state.requests.some((request) => request.path === "/api/jobs?scope=all"))
+      .toBe(true);
     await page.getByLabel(/status/i).selectOption("active");
     await expect(page.getByText("Product Designer", { exact: true })).toBeHidden();
 
@@ -305,6 +338,60 @@ test.describe("Kestrel dashboard acceptance", () => {
     await expect(page.getByRole("status")).toContainText(/saved/i);
     await expect.poll(() => state.criteria[0]!.titleIncludes).toEqual(["engineer", "developer"]);
     await expect.poll(() => state.criteria[0]!.regions).toEqual(["us", "za", "uk"]);
+  });
+
+  test("creates, disables, and deletes criteria sets", async ({ page }) => {
+    const state = await mockApi(page);
+    await unlock(page);
+    await page.getByRole("link", { name: "Criteria" }).click();
+
+    await page.getByRole("button", { name: /add criteria/i }).click();
+    const newRule = page.getByRole("group", { name: /new rule set/i });
+    await newRule.getByLabel("Name").fill("Design roles");
+    await newRule.getByLabel(/title includes/i).fill("designer");
+    const jobsRequestsBeforeCreate = state.requests.filter((request) =>
+      request.path.startsWith("/api/jobs"),
+    ).length;
+    await newRule.getByRole("button", { name: /create criteria/i }).click();
+    await expect.poll(() => state.criteria).toHaveLength(2);
+    await expect
+      .poll(() => state.requests.filter((request) => request.path.startsWith("/api/jobs")).length)
+      .toBeGreaterThan(jobsRequestsBeforeCreate);
+
+    const designRule = page.getByRole("group", { name: "Design roles" });
+    await designRule.getByRole("checkbox", { name: /enabled/i }).uncheck();
+    await designRule.getByRole("button", { name: /save criteria/i }).click();
+    await expect.poll(() => state.criteria[1]!.enabled).toBe(false);
+
+    await designRule.getByRole("button", { name: /delete/i }).click();
+    await expect.poll(() => state.criteria).toHaveLength(1);
+    await expect(page.getByRole("group", { name: "Design roles" })).toBeHidden();
+  });
+
+  test("guides an empty installation to create its first criteria set", async ({ page }) => {
+    const state = await mockApi(page);
+    state.criteria = [];
+    await unlock(page);
+
+    await expect(page.getByText(/no criteria are enabled/i)).toBeVisible();
+    await page.getByRole("link", { name: /create or enable criteria/i }).click();
+    await expect(page.getByRole("heading", { name: "Criteria" })).toBeVisible();
+    await page.getByRole("button", { name: /add criteria/i }).click();
+    await expect(page.getByRole("group", { name: /new rule set/i })).toBeVisible();
+  });
+
+  test("reports a criteria mutation failure and keeps the editor open", async ({ page }) => {
+    const state = await mockApi(page);
+    state.criteriaMutationStatus = 500;
+    await unlock(page);
+    await page.getByRole("link", { name: "Criteria" }).click();
+    await page.getByRole("button", { name: /add criteria/i }).click();
+    const newRule = page.getByRole("group", { name: /new rule set/i });
+    await newRule.getByLabel("Name").fill("Design roles");
+    await newRule.getByRole("button", { name: /create criteria/i }).click();
+
+    await expect(page.getByRole("alert")).toContainText(/could not save criteria/i);
+    await expect(newRule).toBeVisible();
   });
 
   test("enables browser notifications and registers the push subscription", async ({
