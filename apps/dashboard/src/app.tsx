@@ -36,6 +36,7 @@ import { Label } from "./components/ui/label";
 import { cn } from "./lib/utils";
 
 type Job = PersistedJob & { appliedAt: string | null; matchedCriteriaIds?: string[] };
+type JobView = "matching" | "all";
 type View = "companies" | "jobs" | "criteria" | "notifications";
 type Notice = { kind: "status" | "alert"; message: string };
 
@@ -411,8 +412,8 @@ function JobsView({
   jobs: Job[];
   companies: Company[];
   onApplied: (job: Job, applied: boolean) => Promise<void>;
-  jobView: "matching" | "all";
-  onJobViewChange: (view: "matching" | "all") => void;
+  jobView: JobView;
+  onJobViewChange: (view: JobView) => void;
   criteria: Criteria[];
   onManageCriteria: () => void;
 }) {
@@ -886,7 +887,7 @@ export function App() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [criteria, setCriteria] = useState<Criteria[]>([]);
-  const [jobView, setJobView] = useState<"matching" | "all">("matching");
+  const [jobView, setJobView] = useState<JobView>("matching");
   const [view, setView] = useState<View>(() => {
     const hash = location.hash.slice(1);
     return views.some(({ id }) => id === hash) ? (hash as View) : "jobs";
@@ -907,12 +908,11 @@ export function App() {
     const [companyResult, criteriaResult] = await Promise.all([
       api<{ companies: Company[] }>("/api/companies"),
       api<{ criteria: Criteria[] }>("/api/criteria"),
-      loadJobs(),
     ]);
     setCompanies(companyResult.companies);
     setCriteria(criteriaResult.criteria);
     setConnected(true);
-  }, [api, loadJobs]);
+  }, [api]);
 
   useEffect(() => {
     if (!token) return;
@@ -927,6 +927,16 @@ export function App() {
       setConnected(false);
     });
   }, [connectionAttempt, load, token]);
+
+  useEffect(() => {
+    if (!connected) return;
+    void loadJobs().catch((cause) => {
+      setNotice({
+        kind: "alert",
+        message: cause instanceof Error ? cause.message : "Could not load jobs.",
+      });
+    });
+  }, [connected, loadJobs]);
 
   const currentView = useMemo(() => {
     if (view === "companies")

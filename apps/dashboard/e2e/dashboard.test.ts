@@ -234,16 +234,15 @@ test.describe("Kestrel dashboard acceptance", () => {
     await expect(page.getByRole("navigation", { name: /primary/i })).toBeVisible();
   });
 
-  test("distinguishes a data failure from an invalid token", async ({ page }) => {
+  test("keeps the dashboard connected when a job-view refresh fails", async ({ page }) => {
     const state = await mockApi(page);
+    await unlock(page);
     state.jobsStatus = 500;
-    await page.addInitScript(() => localStorage.setItem("kestrel-api-token", "browser-test-token"));
-    await page.goto("/");
+    await page.getByRole("radio", { name: "All jobs" }).check();
 
-    await expect(page.getByRole("alert")).toContainText(
-      /dashboard could not load its data.*internal server error/i,
-    );
-    await expect(page.getByRole("alert")).not.toContainText(/saved token could not connect/i);
+    await expect(page.getByRole("alert")).toContainText(/internal server error/i);
+    await expect(page.getByRole("navigation", { name: /primary/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Jobs" })).toBeVisible();
   });
 
   test("stores the API token locally and sends it as a bearer credential", async ({ page }) => {
