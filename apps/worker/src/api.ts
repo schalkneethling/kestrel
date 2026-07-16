@@ -223,14 +223,15 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
     if (url.pathname === "/api/jobs" && method === "GET") {
       const jobs = await repository.listJobs(url.searchParams.get("companyId") ?? undefined);
       const criteria = await repository.listCriteria();
-      const appliedAtByStableKey = await repository.listRoleAppliedAt(
+      const userStateByStableKey = await repository.listRoleUserStates(
         jobs.map(({ stableKey }) => stableKey),
       );
       const enriched = jobs.map((job) => {
         const { matchedCriteriaIds } = matchPersistedJob(criteria, job);
         return {
           ...job,
-          appliedAt: appliedAtByStableKey[job.stableKey] ?? null,
+          appliedAt: userStateByStableKey[job.stableKey]?.appliedAt ?? null,
+          notInterestedAt: userStateByStableKey[job.stableKey]?.notInterestedAt ?? null,
           matchedCriteriaIds,
         };
       });
@@ -245,10 +246,20 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
               : status === "unapplied"
                 ? enriched.filter((job) => job.appliedAt === null)
                 : enriched;
+      const interest = url.searchParams.get("interest") ?? "current";
+      if (!["current", "dismissed", "all"].includes(interest)) {
+        throw new ApiError(400, "Invalid interest filter");
+      }
+      const interested =
+        interest === "current"
+          ? filtered.filter((job) => job.notInterestedAt === null)
+          : interest === "dismissed"
+            ? filtered.filter((job) => job.notInterestedAt !== null)
+            : filtered;
       const scoped =
         url.searchParams.get("scope") === "all"
-          ? filtered
-          : filtered.filter((job) => job.matchedCriteriaIds.length > 0);
+          ? interested
+          : interested.filter((job) => job.matchedCriteriaIds.length > 0);
       return json({ jobs: scoped });
     }
     const applied = url.pathname.match(/^\/api\/jobs\/([^/]+)\/applied$/);
@@ -260,7 +271,28 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
       if (typeof value.applied !== "boolean") throw new ApiError(400, "applied must be a boolean");
       const appliedAt = value.applied ? new Date().toISOString() : null;
       await repository.setRoleAppliedAt(stableKey, appliedAt);
-      return json({ stableKey, appliedAt });
+      return json({
+        stableKey,
+        appliedAt,
+        notInterestedAt: value.applied ? null : role.notInterestedAt,
+      });
+    }
+    const notInterested = url.pathname.match(/^\/api\/jobs\/([^/]+)\/not-interested$/);
+    if (notInterested && (method === "PUT" || method === "PATCH")) {
+      const stableKey = decodeURIComponent(notInterested[1]);
+      const role = await repository.findRole(stableKey);
+      if (!role) return error(404, "Job role not found");
+      const value = await body(request);
+      if (typeof value.notInterested !== "boolean") {
+        throw new ApiError(400, "notInterested must be a boolean");
+      }
+      const notInterestedAt = value.notInterested ? new Date().toISOString() : null;
+      await repository.setRoleNotInterestedAt(stableKey, notInterestedAt);
+      return json({
+        stableKey,
+        appliedAt: value.notInterested ? null : role.appliedAt,
+        notInterestedAt,
+      });
     }
 
     if (url.pathname === "/api/criteria") {

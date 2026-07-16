@@ -28,7 +28,10 @@ export type RoleLedgerEntry = {
   lastSourceKey: string;
   repostCount: number;
   appliedAt: string | null;
+  notInterestedAt: string | null;
 };
+
+export type RoleUserState = Pick<RoleLedgerEntry, "appliedAt" | "notInterestedAt">;
 
 export type Criteria = {
   id: string;
@@ -86,11 +89,12 @@ export interface PersistencePort {
   saveCompany(company: Company): Promise<void>;
   deleteCompany(id: string): Promise<"deleted" | "not_found" | "conflict">;
   listJobs(companyId?: string): Promise<PersistedJob[]>;
-  listRoleAppliedAt(stableKeys: string[]): Promise<Record<string, string | null>>;
+  listRoleUserStates(stableKeys: string[]): Promise<Record<string, RoleUserState>>;
   saveJob(job: PersistedJob): Promise<void>;
   findRole(stableKey: string): Promise<RoleLedgerEntry | null>;
   saveRole(entry: RoleLedgerEntry): Promise<void>;
   setRoleAppliedAt(stableKey: string, appliedAt: string | null): Promise<boolean>;
+  setRoleNotInterestedAt(stableKey: string, notInterestedAt: string | null): Promise<boolean>;
   listCriteria(): Promise<Criteria[]>;
   saveCriteria(criteria: Criteria): Promise<void>;
   deleteCriteria(id: string): Promise<boolean>;

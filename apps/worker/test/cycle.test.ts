@@ -27,11 +27,12 @@ function persistence(overrides: Partial<PersistencePort> = {}) {
     saveCompany: async () => undefined,
     deleteCompany: async () => "not_found",
     listJobs: async () => [jobFixture],
-    listRoleAppliedAt: async () => ({}),
+    listRoleUserStates: async () => ({}),
     saveJob: async (job) => void jobs.push(job),
     findRole: async () => null,
     saveRole: async () => undefined,
     setRoleAppliedAt: async () => false,
+    setRoleNotInterestedAt: async () => false,
     listCriteria: async () => [criteriaFixture],
     saveCriteria: async (_criteria: Criteria) => undefined,
     deleteCriteria: async () => false,
@@ -170,6 +171,125 @@ describe("poll cycle", () => {
 
     expect(classifySnapshot).not.toHaveBeenCalled();
     expect(pollRuns.at(-1)).toMatchObject({ status: "succeeded", jobsRemoved: 0 });
+  });
+
+  it("does not notify for a dismissed role when it is reposted", async () => {
+    const observed = { ...jobFixture, id: "repost-job", sourceKey: "company-acme:greenhouse:456" };
+    const dismissedRole = {
+      ...roleFixture,
+      lastSourceKey: observed.sourceKey,
+      repostCount: 1,
+      notInterestedAt: "2026-07-10T12:00:00.000Z",
+    };
+    const { port, jobs, notifications } = persistence();
+    const adapter: AtsAdapter = {
+      type: "greenhouse",
+      fetchJobs: async () => ({
+        status: "ok",
+        jobs: [
+          {
+            atsJobId: "456",
+            title: "Engineer",
+            locationRaw: "Remote - US",
+            absoluteUrl: "https://example.com/jobs/456",
+          },
+        ],
+      }),
+    };
+
+    await runPollCycle({
+      persistence: port,
+      adapters: new Map([["greenhouse", adapter]]),
+      classifySnapshot: async () => ({
+        observations: [{ classification: "reposted", role: dismissedRole, job: observed }],
+        removedJobs: [],
+      }),
+      matchesCriteria: () => true,
+      now: dates,
+      createId: () => "poll-1",
+    });
+
+    expect(jobs).toContainEqual(observed);
+    expect(notifications).toEqual([]);
+  });
+
+  it("lets a concurrent durable dismissal suppress a notification", async () => {
+    const observed = { ...jobFixture, id: "new-job", sourceKey: "company-acme:greenhouse:456" };
+    const { port, notifications } = persistence({
+      findRole: async () => ({
+        ...roleFixture,
+        notInterestedAt: "2026-07-11T11:59:00.000Z",
+      }),
+    });
+    const adapter: AtsAdapter = {
+      type: "greenhouse",
+      fetchJobs: async () => ({
+        status: "ok",
+        jobs: [
+          {
+            atsJobId: "456",
+            title: "Engineer",
+            locationRaw: "Remote - US",
+            absoluteUrl: "https://example.com/jobs/456",
+          },
+        ],
+      }),
+    };
+
+    await runPollCycle({
+      persistence: port,
+      adapters: new Map([["greenhouse", adapter]]),
+      classifySnapshot: async () => ({
+        observations: [{ classification: "new", role: roleFixture, job: observed }],
+        removedJobs: [],
+      }),
+      matchesCriteria: () => true,
+      now: dates,
+      createId: () => "poll-1",
+    });
+
+    expect(notifications).toEqual([]);
+  });
+
+  it("preserves dismissal and suppresses a repost after the previous job was purged", async () => {
+    const dismissedRole = {
+      ...roleFixture,
+      notInterestedAt: "2026-07-10T12:00:00.000Z",
+    };
+    const { port, jobs, notifications } = persistence({
+      listJobs: async () => [],
+      findRole: async () => dismissedRole,
+    });
+    const adapter: AtsAdapter = {
+      type: "greenhouse",
+      fetchJobs: async () => ({
+        status: "ok",
+        jobs: [
+          {
+            atsJobId: "456",
+            title: "Engineer",
+            locationRaw: "Remote - US",
+            employmentType: "Full Time",
+            absoluteUrl: "https://example.com/jobs/456",
+          },
+        ],
+      }),
+    };
+    const ids = ["poll-1", "job-repost"];
+
+    await runPollCycle({
+      persistence: port,
+      adapters: new Map([["greenhouse", adapter]]),
+      classifySnapshot: classifyWithCore,
+      matchesCriteria: () => true,
+      now: dates,
+      createId: () => ids.shift() ?? "extra",
+    });
+
+    expect(jobs).toEqual([
+      expect.objectContaining({ id: "job-repost", stableKey: dismissedRole.stableKey }),
+    ]);
+    expect(notifications).toEqual([]);
   });
 
   it("classifies and matches a production-format source through the real core path", async () => {

@@ -43,8 +43,8 @@ describe("D1Repository", () => {
     expect(await repository.listCompanies()).toEqual([companyFixture]);
     expect(await repository.findRole(roleFixture.stableKey)).toEqual(roleFixture);
     expect(await repository.listJobs(companyFixture.id)).toEqual([jobFixture]);
-    expect(await repository.listRoleAppliedAt([roleFixture.stableKey, "missing"])).toEqual({
-      [roleFixture.stableKey]: null,
+    expect(await repository.listRoleUserStates([roleFixture.stableKey, "missing"])).toEqual({
+      [roleFixture.stableKey]: { appliedAt: null, notInterestedAt: null },
     });
     expect(await repository.listCriteria()).toEqual([criteriaFixture]);
   });
@@ -67,7 +67,7 @@ describe("D1Repository", () => {
     expect(await repository.findCompany(companyFixture.id)).toEqual(companyFixture);
   });
 
-  it("updates applied state by stable key and deletes criteria", async () => {
+  it("updates mutually exclusive applied and not-interested state by stable key", async () => {
     const repository = new D1Repository(env.DB);
     await repository.saveCompany(companyFixture);
     await repository.saveRole(roleFixture);
@@ -75,9 +75,32 @@ describe("D1Repository", () => {
 
     const appliedAt = "2026-07-11T09:00:00.000Z";
     expect(await repository.setRoleAppliedAt(roleFixture.stableKey, appliedAt)).toBe(true);
-    expect(await repository.findRole(roleFixture.stableKey)).toMatchObject({ appliedAt });
+    expect(await repository.findRole(roleFixture.stableKey)).toMatchObject({
+      appliedAt,
+      notInterestedAt: null,
+    });
+    const notInterestedAt = "2026-07-11T10:00:00.000Z";
+    expect(await repository.setRoleNotInterestedAt(roleFixture.stableKey, notInterestedAt)).toBe(
+      true,
+    );
+    expect(await repository.findRole(roleFixture.stableKey)).toMatchObject({
+      appliedAt: null,
+      notInterestedAt,
+    });
+    expect(await repository.setRoleAppliedAt(roleFixture.stableKey, appliedAt)).toBe(true);
+    expect(await repository.findRole(roleFixture.stableKey)).toMatchObject({
+      appliedAt,
+      notInterestedAt: null,
+    });
     expect(await repository.setRoleAppliedAt(roleFixture.stableKey, null)).toBe(true);
+    expect(await repository.setRoleNotInterestedAt(roleFixture.stableKey, null)).toBe(true);
     expect(await repository.setRoleAppliedAt("missing", appliedAt)).toBe(false);
+    expect(await repository.setRoleNotInterestedAt("missing", notInterestedAt)).toBe(false);
+  });
+
+  it("deletes criteria", async () => {
+    const repository = new D1Repository(env.DB);
+    await repository.saveCriteria(criteriaFixture);
     expect(await repository.deleteCriteria(criteriaFixture.id)).toBe(true);
     expect(await repository.deleteCriteria(criteriaFixture.id)).toBe(false);
   });
@@ -120,7 +143,10 @@ describe("D1Repository", () => {
   });
 
   it("contains every planned table and its important indexes", async () => {
-    expect(env.TEST_MIGRATIONS.map(({ name }) => name)).toEqual(["0000_complete_steve_rogers.sql"]);
+    expect(env.TEST_MIGRATIONS.map(({ name }) => name)).toEqual([
+      "0000_complete_steve_rogers.sql",
+      "0001_sticky_pretty_boy.sql",
+    ]);
     const tables = await env.DB.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all<{
       name: string;
     }>();
@@ -143,6 +169,7 @@ describe("D1Repository", () => {
         "jobs_source_key_unique",
         "jobs_company_removed_idx",
         "role_ledger_company_idx",
+        "role_ledger_not_interested_idx",
         "notifications_dedupe_key_unique",
         "poll_runs_started_idx",
       ]),
@@ -169,9 +196,9 @@ describe("D1Repository", () => {
 
   it("purges only removed jobs older than the cutoff through the repository", async () => {
     const repository = new D1Repository(env.DB);
-    const appliedAt = "2026-07-11T09:00:00.000Z";
     await repository.saveCompany(companyFixture);
-    await repository.saveRole({ ...roleFixture, appliedAt });
+    const notInterestedAt = "2026-07-11T10:00:00.000Z";
+    await repository.saveRole({ ...roleFixture, notInterestedAt });
     const eligible = { ...jobFixture, removedAt: "2026-07-08T00:00:00.000Z" };
     const recent = {
       ...jobFixture,
@@ -194,7 +221,9 @@ describe("D1Repository", () => {
       "job-current",
       "job-recent",
     ]);
-    expect(await repository.findRole(roleFixture.stableKey)).toMatchObject({ appliedAt });
+    expect(await repository.findRole(roleFixture.stableKey)).toMatchObject({
+      notInterestedAt,
+    });
     expect(await repository.listNotifications()).toEqual([{ ...notificationFixture, jobId: null }]);
   });
 
@@ -241,17 +270,20 @@ describe("D1Repository", () => {
     await expect(repository.savePollRun({ ...completed, jobsSeen: -1 })).rejects.toThrow();
   });
 
-  it("atomically records ledger and job observations without erasing applied state", async () => {
+  it("atomically records ledger and job observations without erasing user state", async () => {
     const repository = new D1Repository(env.DB);
     await repository.saveCompany(companyFixture);
-    await repository.saveRole({ ...roleFixture, appliedAt: "2026-07-11T09:00:00.000Z" });
+    await repository.saveRole({
+      ...roleFixture,
+      notInterestedAt: "2026-07-11T09:00:00.000Z",
+    });
     await repository.recordObservation(
-      { ...roleFixture, lastSeenAt: "2026-07-12T08:00:00.000Z", appliedAt: null },
+      { ...roleFixture, lastSeenAt: "2026-07-12T08:00:00.000Z", notInterestedAt: null },
       jobFixture,
     );
     expect(await repository.findRole(roleFixture.stableKey)).toMatchObject({
       lastSeenAt: "2026-07-12T08:00:00.000Z",
-      appliedAt: "2026-07-11T09:00:00.000Z",
+      notInterestedAt: "2026-07-11T09:00:00.000Z",
     });
 
     const invalidRole = { ...roleFixture, stableKey: "rollback-role", repostCount: 1 };

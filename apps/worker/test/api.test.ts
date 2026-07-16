@@ -41,8 +41,8 @@ async function seedJob() {
   await seedCompany();
   await env.DB.prepare(
     `INSERT INTO role_ledger
-      (stable_key, company_id, title, first_seen_at, last_seen_at, last_source_key, repost_count, applied_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      (stable_key, company_id, title, first_seen_at, last_seen_at, last_source_key, repost_count, applied_at, not_interested_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   )
     .bind(
       roleFixture.stableKey,
@@ -53,6 +53,7 @@ async function seedJob() {
       roleFixture.lastSourceKey,
       roleFixture.repostCount,
       roleFixture.appliedAt,
+      roleFixture.notInterestedAt,
     )
     .run();
   await env.DB.prepare(
@@ -212,6 +213,87 @@ describe("jobs API", () => {
       .first<{ applied_at: string | null }>();
     expect(row?.applied_at).toEqual(expect.any(String));
   });
+
+  it("dismisses roles durably, filters by interest, and restores interest", async () => {
+    await seedJob();
+
+    const dismissed = await api(
+      `/api/jobs/${encodeURIComponent(roleFixture.stableKey)}/not-interested`,
+      {
+        method: "PATCH",
+        body: json({ notInterested: true }),
+      },
+    );
+    expect(dismissed.status).toBe(200);
+    expect(await dismissed.json()).toEqual({
+      stableKey: roleFixture.stableKey,
+      appliedAt: null,
+      notInterestedAt: expect.any(String),
+    });
+
+    await expect(api("/api/jobs?scope=all").then((response) => response.json())).resolves.toEqual({
+      jobs: [],
+    });
+    await expect(
+      api("/api/jobs?scope=all&interest=dismissed").then((response) => response.json()),
+    ).resolves.toEqual({
+      jobs: [expect.objectContaining({ ...jobFixture, notInterestedAt: expect.any(String) })],
+    });
+    await expect(
+      api("/api/jobs?scope=all&interest=all").then((response) => response.json()),
+    ).resolves.toEqual({
+      jobs: [expect.objectContaining({ ...jobFixture, notInterestedAt: expect.any(String) })],
+    });
+
+    const restored = await api(
+      `/api/jobs/${encodeURIComponent(roleFixture.stableKey)}/not-interested`,
+      {
+        method: "PATCH",
+        body: json({ notInterested: false }),
+      },
+    );
+    await expect(restored.json()).resolves.toEqual({
+      stableKey: roleFixture.stableKey,
+      appliedAt: null,
+      notInterestedAt: null,
+    });
+    await expect(api("/api/jobs?scope=all").then((response) => response.json())).resolves.toEqual({
+      jobs: [expect.objectContaining({ ...jobFixture, notInterestedAt: null })],
+    });
+  });
+
+  it("makes applied and not-interested state mutually exclusive", async () => {
+    await seedJob();
+    const rolePath = `/api/jobs/${encodeURIComponent(roleFixture.stableKey)}`;
+
+    await api(`${rolePath}/applied`, { method: "PATCH", body: json({ applied: true }) });
+    await api(`${rolePath}/not-interested`, {
+      method: "PATCH",
+      body: json({ notInterested: true }),
+    });
+    expect(
+      await env.DB.prepare(
+        "SELECT applied_at, not_interested_at FROM role_ledger WHERE stable_key = ?",
+      )
+        .bind(roleFixture.stableKey)
+        .first(),
+    ).toEqual({ applied_at: null, not_interested_at: expect.any(String) });
+
+    await api(`${rolePath}/applied`, { method: "PATCH", body: json({ applied: true }) });
+    expect(
+      await env.DB.prepare(
+        "SELECT applied_at, not_interested_at FROM role_ledger WHERE stable_key = ?",
+      )
+        .bind(roleFixture.stableKey)
+        .first(),
+    ).toEqual({ applied_at: expect.any(String), not_interested_at: null });
+  });
+
+  it("rejects unknown interest filters", async () => {
+    const response = await api("/api/jobs?interest=unknown");
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "Invalid interest filter" });
+  });
 });
 
 describe("criteria API", () => {
@@ -337,6 +419,11 @@ describe("API errors", () => {
       [
         "/api/jobs/missing/applied",
         { method: "PATCH", body: json({ applied: true }) },
+        "Job role not found",
+      ],
+      [
+        "/api/jobs/missing/not-interested",
+        { method: "PATCH", body: json({ notInterested: true }) },
         "Job role not found",
       ],
       ["/api/criteria/missing", { method: "DELETE" }, "Criteria not found"],

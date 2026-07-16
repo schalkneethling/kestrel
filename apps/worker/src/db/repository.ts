@@ -102,13 +102,17 @@ export class D1Repository implements PersistencePort {
       removedAt: row.removedAt,
     }));
   }
-  async listRoleAppliedAt(stableKeys: string[]): Promise<Record<string, string | null>> {
+  async listRoleUserStates(stableKeys: string[]) {
     if (stableKeys.length === 0) return {};
     const rows = [];
     for (let index = 0; index < stableKeys.length; index += D1_QUERY_PARAMETER_BATCH_SIZE) {
       rows.push(
         ...(await this.#db
-          .select({ stableKey: roleLedger.stableKey, appliedAt: roleLedger.appliedAt })
+          .select({
+            stableKey: roleLedger.stableKey,
+            appliedAt: roleLedger.appliedAt,
+            notInterestedAt: roleLedger.notInterestedAt,
+          })
           .from(roleLedger)
           .where(
             inArray(
@@ -118,7 +122,12 @@ export class D1Repository implements PersistencePort {
           )),
       );
     }
-    return Object.fromEntries(rows.map(({ stableKey, appliedAt }) => [stableKey, appliedAt]));
+    return Object.fromEntries(
+      rows.map(({ stableKey, appliedAt, notInterestedAt }) => [
+        stableKey,
+        { appliedAt, notInterestedAt },
+      ]),
+    );
   }
   async saveJob(job: PersistedJob): Promise<void> {
     const { regions, ...values } = job;
@@ -140,7 +149,18 @@ export class D1Repository implements PersistencePort {
   async setRoleAppliedAt(stableKey: string, appliedAt: string | null): Promise<boolean> {
     const updated = await this.#db
       .update(roleLedger)
-      .set({ appliedAt })
+      .set(appliedAt === null ? { appliedAt } : { appliedAt, notInterestedAt: null })
+      .where(eq(roleLedger.stableKey, stableKey))
+      .returning({ stableKey: roleLedger.stableKey });
+    return updated.length > 0;
+  }
+  async setRoleNotInterestedAt(
+    stableKey: string,
+    notInterestedAt: string | null,
+  ): Promise<boolean> {
+    const updated = await this.#db
+      .update(roleLedger)
+      .set(notInterestedAt === null ? { notInterestedAt } : { appliedAt: null, notInterestedAt })
       .where(eq(roleLedger.stableKey, stableKey))
       .returning({ stableKey: roleLedger.stableKey });
     return updated.length > 0;

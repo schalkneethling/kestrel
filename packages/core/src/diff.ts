@@ -42,6 +42,7 @@ function createRole(
     lastSourceKey: job.sourceKey,
     repostCount: 0,
     appliedAt: null,
+    notInterestedAt: null,
   };
 }
 
