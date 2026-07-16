@@ -130,7 +130,10 @@ async function mockApi(page: Page) {
     if (url.pathname === "/api/companies" && method === "POST") {
       const input = body as Record<string, unknown>;
       const duplicate = state.companies.some(
-        (item) => item.atsType === input.atsType && item.boardToken === input.boardToken,
+        (item) =>
+          input.boardToken !== null &&
+          item.atsType === input.atsType &&
+          item.boardToken === input.boardToken,
       );
       if (duplicate) {
         return json(route, 409, {

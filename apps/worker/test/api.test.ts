@@ -152,6 +152,24 @@ describe("company API", () => {
     });
   });
 
+  it("reports a reused company id separately from an ATS board conflict", async () => {
+    await seedCompany();
+
+    const response = await api("/api/companies", {
+      method: "POST",
+      body: json({
+        ...companyFixture,
+        atsType: "lever",
+        boardToken: "different-board",
+      }),
+    });
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({
+      error: "A company with this id already exists",
+    });
+  });
+
   it("returns a conflict when durable role history prevents deletion", async () => {
     await seedJob();
 

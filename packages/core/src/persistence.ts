@@ -82,11 +82,13 @@ export type PollRun = {
   error: string | null;
 };
 
+export type CreateCompanyResult = "created" | "duplicate_id" | "duplicate_ats_board";
+
 /** Provider-neutral storage contract. Persistence adapters translate these values to database rows. */
 export interface PersistencePort {
   listCompanies(): Promise<Company[]>;
   findCompany(id: string): Promise<Company | null>;
-  createCompany(company: Company): Promise<boolean>;
+  createCompany(company: Company): Promise<CreateCompanyResult>;
   saveCompany(company: Company): Promise<void>;
   deleteCompany(id: string): Promise<"deleted" | "not_found" | "conflict">;
   listJobs(companyId?: string): Promise<PersistedJob[]>;

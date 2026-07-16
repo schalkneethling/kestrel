@@ -60,15 +60,39 @@ describe("D1Repository", () => {
 
   it("reports duplicate ATS board identities without replacing the existing company", async () => {
     const repository = new D1Repository(env.DB);
-    expect(await repository.createCompany(companyFixture)).toBe(true);
+    expect(await repository.createCompany(companyFixture)).toBe("created");
     expect(
       await repository.createCompany({
         ...companyFixture,
         id: "duplicate-company",
         name: "Duplicate Acme",
       }),
-    ).toBe(false);
+    ).toBe("duplicate_ats_board");
     expect(await repository.listCompanies()).toEqual([companyFixture]);
+  });
+
+  it("distinguishes duplicate company ids and permits repeated null board tokens", async () => {
+    const repository = new D1Repository(env.DB);
+    expect(await repository.createCompany(companyFixture)).toBe("created");
+    expect(
+      await repository.createCompany({
+        ...companyFixture,
+        atsType: "lever",
+        boardToken: "different-board",
+      }),
+    ).toBe("duplicate_id");
+
+    const unsupported = {
+      ...companyFixture,
+      id: "unsupported-one",
+      atsType: "unsupported" as const,
+      boardToken: null,
+      status: "unsupported" as const,
+    };
+    expect(await repository.createCompany(unsupported)).toBe("created");
+    expect(await repository.createCompany({ ...unsupported, id: "unsupported-two" })).toBe(
+      "created",
+    );
   });
 
   it("reports a conflict when durable role history prevents company deletion", async () => {
