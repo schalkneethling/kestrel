@@ -143,6 +143,10 @@ export async function runPollCycle(
           observation.classification !== "unchanged" &&
           criteria.some((value) => matchesCriteria(value, observation.job))
         ) {
+          // Re-read after persistence so a concurrent dismissal wins over notification creation.
+          const durableRole =
+            (await persistence.findRole(observation.job.stableKey)) ?? observation.role;
+          if (durableRole.notInterestedAt !== null) continue;
           const eventType = observation.classification === "new" ? "new" : "reposted";
           await persistence.saveNotification({
             id: createId(),

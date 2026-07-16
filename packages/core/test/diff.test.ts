@@ -54,6 +54,7 @@ function role(overrides: Partial<RoleLedgerEntry> = {}): RoleLedgerEntry {
     lastSourceKey: "greenhouse:acme:ats-old",
     repostCount: 0,
     appliedAt: null,
+    notInterestedAt: null,
     ...overrides,
   };
 }
@@ -74,6 +75,7 @@ describe("diffSnapshot", () => {
       lastSeenAt: observedAt,
       repostCount: 0,
       appliedAt: null,
+      notInterestedAt: null,
     });
     expect(result.reposted).toEqual([]);
     expect(result.unchanged).toEqual([]);
@@ -144,6 +146,20 @@ describe("diffSnapshot", () => {
       repostCount: 1,
       appliedAt: "2026-07-03T08:00:00.000Z",
     });
+  });
+
+  it("preserves not-interested state when a role is reposted after its job was purged", () => {
+    const notInterestedAt = "2026-07-03T08:00:00.000Z";
+    const current = normalized({ atsJobId: "ats-2", sourceKey: "greenhouse:acme:ats-2" });
+    const result = diffSnapshot({
+      current: [current],
+      persisted: [],
+      ledger: [role({ notInterestedAt })],
+      successfulCompanyIds: ["acme"],
+      observedAt,
+    });
+
+    expect(result.reposted[0]?.role).toMatchObject({ repostCount: 1, notInterestedAt });
   });
 
   it("treats a previously removed source returning as a repost", () => {

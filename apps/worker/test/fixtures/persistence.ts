@@ -29,6 +29,7 @@ export const roleFixture: RoleLedgerEntry = {
   lastSourceKey: "company-acme:greenhouse:123",
   repostCount: 0,
   appliedAt: null,
+  notInterestedAt: null,
 };
 
 export const jobFixture: PersistedJob = {

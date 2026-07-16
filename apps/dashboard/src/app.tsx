@@ -35,8 +35,13 @@ import { Input, Textarea } from "./components/ui/input";
 import { Label } from "./components/ui/label";
 import { cn } from "./lib/utils";
 
-type Job = PersistedJob & { appliedAt: string | null; matchedCriteriaIds?: string[] };
+type Job = PersistedJob & {
+  appliedAt: string | null;
+  notInterestedAt: string | null;
+  matchedCriteriaIds?: string[];
+};
 type JobView = "matching" | "all";
+type InterestView = "current" | "dismissed" | "all";
 type View = "companies" | "jobs" | "criteria" | "notifications";
 type Notice = { kind: "status" | "alert"; message: string };
 
@@ -404,27 +409,45 @@ function JobsView({
   jobs,
   companies,
   onApplied,
+  onNotInterested,
   jobView,
   onJobViewChange,
+  interestView,
+  onInterestViewChange,
   criteria,
   onManageCriteria,
 }: {
   jobs: Job[];
   companies: Company[];
   onApplied: (job: Job, applied: boolean) => Promise<void>;
+  onNotInterested: (job: Job, notInterested: boolean) => Promise<void>;
   jobView: JobView;
   onJobViewChange: (view: JobView) => void;
+  interestView: InterestView;
+  onInterestViewChange: (view: InterestView) => void;
   criteria: Criteria[];
   onManageCriteria: () => void;
 }) {
   const [status, setStatus] = useState("all");
   const [applied, setApplied] = useState("all");
+  const [pendingJobs, setPendingJobs] = useState<string[]>([]);
+  const interestFilter = useRef<HTMLSelectElement>(null);
+  const updateJob = async (job: Job, update: () => Promise<void>) => {
+    setPendingJobs((items) => [...items, job.stableKey]);
+    try {
+      await update();
+    } finally {
+      setPendingJobs((items) => items.filter((stableKey) => stableKey !== job.stableKey));
+    }
+  };
   const visible = jobs.filter(
     (job) =>
       !(status === "active" && job.removedAt) &&
       !(status === "removed" && !job.removedAt) &&
       !(applied === "true" && !job.appliedAt) &&
-      !(applied === "false" && job.appliedAt),
+      !(applied === "false" && job.appliedAt) &&
+      !(interestView === "current" && job.notInterestedAt) &&
+      !(interestView === "dismissed" && !job.notInterestedAt),
   );
   const companyName = (id: string) =>
     companies.find((company) => company.id === id)?.name ?? "Unknown company";
@@ -485,6 +508,18 @@ function JobsView({
           <option value="true">Applied</option>
           <option value="false">Not applied</option>
         </select>
+        <Label htmlFor="interest-filter">Interest</Label>
+        <select
+          ref={interestFilter}
+          id="interest-filter"
+          value={interestView}
+          onChange={(event) => onInterestViewChange(event.target.value as InterestView)}
+          className="rounded-md border border-border bg-white px-3 py-2 text-sm"
+        >
+          <option value="current">Current</option>
+          <option value="dismissed">Not interested</option>
+          <option value="all">All</option>
+        </select>
       </search>
       {visible.length ? (
         <div className="relative grid gap-3 before:absolute before:bottom-4 before:left-[0.3rem] before:top-4 before:w-px before:bg-border">
@@ -542,17 +577,42 @@ function JobsView({
                     {job.descriptionSnippet}
                   </p>
                 ) : null}
-                <footer className="mt-4 flex items-center justify-between border-t border-border pt-3 text-xs text-muted-foreground">
+                <footer className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3 text-xs text-muted-foreground">
                   <time dateTime={job.lastSeenAt}>
                     Seen {new Date(job.lastSeenAt).toLocaleDateString()}
                   </time>
-                  <Label className="flex items-center gap-2 text-foreground">
-                    <Checkbox
-                      checked={Boolean(job.appliedAt)}
-                      onCheckedChange={(checked) => void onApplied(job, checked === true)}
-                    />
-                    Applied
-                  </Label>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      disabled={pendingJobs.includes(job.stableKey)}
+                      aria-label={
+                        job.notInterestedAt
+                          ? `Restore ${job.title}`
+                          : `Not interested in ${job.title}`
+                      }
+                      onClick={() => {
+                        interestFilter.current?.focus();
+                        void updateJob(job, () => onNotInterested(job, !job.notInterestedAt));
+                      }}
+                    >
+                      {pendingJobs.includes(job.stableKey)
+                        ? "Updating…"
+                        : job.notInterestedAt
+                          ? "Restore"
+                          : "Not interested"}
+                    </Button>
+                    <Label className="flex items-center gap-2 text-foreground">
+                      <Checkbox
+                        checked={Boolean(job.appliedAt)}
+                        disabled={pendingJobs.includes(job.stableKey)}
+                        onCheckedChange={(checked) =>
+                          void updateJob(job, () => onApplied(job, checked === true))
+                        }
+                      />
+                      Applied
+                    </Label>
+                  </div>
                 </footer>
               </div>
             </article>
@@ -888,6 +948,7 @@ export function App() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [criteria, setCriteria] = useState<Criteria[]>([]);
   const [jobView, setJobView] = useState<JobView>("matching");
+  const [interestView, setInterestView] = useState<InterestView>("current");
   const [view, setView] = useState<View>(() => {
     const hash = location.hash.slice(1);
     return views.some(({ id }) => id === hash) ? (hash as View) : "jobs";
@@ -898,11 +959,12 @@ export function App() {
 
   const loadJobs = useCallback(async () => {
     const request = ++jobsRequest.current;
-    const result = await api<{ jobs: Job[] }>(
-      jobView === "all" ? "/api/jobs?scope=all" : "/api/jobs",
-    );
+    const query = new URLSearchParams();
+    if (jobView === "all" || interestView === "dismissed") query.set("scope", "all");
+    if (interestView !== "current") query.set("interest", interestView);
+    const result = await api<{ jobs: Job[] }>(`/api/jobs${query.size ? `?${query}` : ""}`);
     if (request === jobsRequest.current) setJobs(result.jobs);
-  }, [api, jobView]);
+  }, [api, interestView, jobView]);
 
   const load = useCallback(async () => {
     const [companyResult, criteriaResult] = await Promise.all([
@@ -1029,29 +1091,99 @@ export function App() {
         criteria={criteria}
         jobView={jobView}
         onJobViewChange={setJobView}
+        interestView={interestView}
+        onInterestViewChange={setInterestView}
         onManageCriteria={() => setView("criteria")}
         onApplied={async (job, applied) => {
           setJobs((items) =>
             items.map((item) =>
-              item.id === job.id
-                ? { ...item, appliedAt: applied ? new Date().toISOString() : null }
+              item.stableKey === job.stableKey
+                ? {
+                    ...item,
+                    appliedAt: applied ? new Date().toISOString() : null,
+                    notInterestedAt: applied ? null : item.notInterestedAt,
+                  }
                 : item,
             ),
           );
           try {
-            const result = await api<{ appliedAt: string | null }>(
-              `/api/jobs/${encodeURIComponent(job.stableKey)}/applied`,
-              { method: "PATCH", body: JSON.stringify({ applied }) },
-            );
+            const result = await api<{
+              appliedAt: string | null;
+              notInterestedAt: string | null;
+            }>(`/api/jobs/${encodeURIComponent(job.stableKey)}/applied`, {
+              method: "PATCH",
+              body: JSON.stringify({ applied }),
+            });
             setJobs((items) =>
               items.map((item) =>
-                item.id === job.id ? { ...item, appliedAt: result.appliedAt } : item,
+                item.stableKey === job.stableKey
+                  ? {
+                      ...item,
+                      appliedAt: result.appliedAt,
+                      notInterestedAt: result.notInterestedAt,
+                    }
+                  : item,
               ),
             );
           } catch (cause) {
             setJobs((items) =>
               items.map((item) =>
-                item.id === job.id ? { ...item, appliedAt: job.appliedAt } : item,
+                item.stableKey === job.stableKey
+                  ? {
+                      ...item,
+                      appliedAt: job.appliedAt,
+                      notInterestedAt: job.notInterestedAt,
+                    }
+                  : item,
+              ),
+            );
+            setNotice({
+              kind: "alert",
+              message: cause instanceof Error ? cause.message : "Could not update role.",
+            });
+          }
+        }}
+        onNotInterested={async (job, notInterested) => {
+          setJobs((items) =>
+            items.map((item) =>
+              item.stableKey === job.stableKey
+                ? {
+                    ...item,
+                    appliedAt: notInterested ? null : item.appliedAt,
+                    notInterestedAt: notInterested ? new Date().toISOString() : null,
+                  }
+                : item,
+            ),
+          );
+          try {
+            const result = await api<{
+              appliedAt: string | null;
+              notInterestedAt: string | null;
+            }>(`/api/jobs/${encodeURIComponent(job.stableKey)}/not-interested`, {
+              method: "PATCH",
+              body: JSON.stringify({ notInterested }),
+            });
+            setJobs((items) =>
+              items.map((item) =>
+                item.stableKey === job.stableKey
+                  ? {
+                      ...item,
+                      appliedAt: result.appliedAt,
+                      notInterestedAt: result.notInterestedAt,
+                    }
+                  : item,
+              ),
+            );
+          } catch (cause) {
+            setJobs((items) =>
+              items.map((item) =>
+                item.stableKey === job.stableKey
+                  ? {
+                      ...item,
+                      appliedAt: job.appliedAt,
+                      notInterestedAt: job.notInterestedAt,
+                    }
+                  : item,
               ),
             );
             setNotice({
@@ -1062,7 +1194,7 @@ export function App() {
         }}
       />
     );
-  }, [api, companies, criteria, jobView, jobs, loadJobs, view]);
+  }, [api, companies, criteria, interestView, jobView, jobs, loadJobs, view]);
 
   function connect(nextToken: string) {
     localStorage.setItem(tokenKey, nextToken);
@@ -1075,6 +1207,7 @@ export function App() {
     try {
       await api(path, { method: "POST" });
       await load();
+      await loadJobs();
       setNotice({ kind: "status", message: success });
     } catch (cause) {
       setNotice({

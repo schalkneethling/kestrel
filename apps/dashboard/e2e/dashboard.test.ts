@@ -44,6 +44,7 @@ const jobs = [
     lastSeenAt: "2026-07-11T08:00:00.000Z",
     removedAt: null,
     appliedAt: null,
+    notInterestedAt: null,
     matchedCriteriaIds: ["criteria-default"],
   },
   {
@@ -64,6 +65,7 @@ const jobs = [
     lastSeenAt: "2026-07-10T08:00:00.000Z",
     removedAt: "2026-07-11T07:00:00.000Z",
     appliedAt: null,
+    notInterestedAt: null,
   },
 ];
 
@@ -155,17 +157,48 @@ async function mockApi(page: Page) {
       const status = url.searchParams.get("status");
       const companyId = url.searchParams.get("companyId");
       const applied = url.searchParams.get("applied");
+      const interest = url.searchParams.get("interest") ?? "current";
       if (status === "active") result = result.filter((job) => job.removedAt === null);
       if (status === "removed") result = result.filter((job) => job.removedAt !== null);
       if (companyId) result = result.filter((job) => job.companyId === companyId);
       if (applied === "true") result = result.filter((job) => job.appliedAt !== null);
+      if (interest === "current") {
+        result = result.filter((job) => job.notInterestedAt === null);
+      }
+      if (interest === "dismissed") {
+        result = result.filter((job) => job.notInterestedAt !== null);
+      }
       return json(route, 200, { jobs: result });
     }
     if (url.pathname.endsWith("/applied") && method === "PATCH") {
       const key = decodeURIComponent(url.pathname.slice("/api/jobs/".length, -"/applied".length));
-      const job = state.jobs.find((item) => item.stableKey === key)!;
-      job.appliedAt = (body as { applied: boolean }).applied ? "2026-07-11T09:00:00.000Z" : null;
-      return json(route, 200, { stableKey: key, appliedAt: job.appliedAt });
+      const matchingJobs = state.jobs.filter((item) => item.stableKey === key);
+      for (const job of matchingJobs) {
+        job.appliedAt = (body as { applied: boolean }).applied ? "2026-07-11T09:00:00.000Z" : null;
+        if (job.appliedAt) job.notInterestedAt = null;
+      }
+      return json(route, 200, {
+        stableKey: key,
+        appliedAt: matchingJobs[0]!.appliedAt,
+        notInterestedAt: matchingJobs[0]!.notInterestedAt,
+      });
+    }
+    if (url.pathname.endsWith("/not-interested") && method === "PATCH") {
+      const key = decodeURIComponent(
+        url.pathname.slice("/api/jobs/".length, -"/not-interested".length),
+      );
+      const matchingJobs = state.jobs.filter((item) => item.stableKey === key);
+      for (const job of matchingJobs) {
+        job.notInterestedAt = (body as { notInterested: boolean }).notInterested
+          ? "2026-07-11T10:00:00.000Z"
+          : null;
+        if (job.notInterestedAt) job.appliedAt = null;
+      }
+      return json(route, 200, {
+        stableKey: key,
+        appliedAt: matchingJobs[0]!.appliedAt,
+        notInterestedAt: matchingJobs[0]!.notInterestedAt,
+      });
     }
     if (url.pathname === "/api/criteria" && method === "GET") {
       return json(route, 200, { criteria: state.criteria });
@@ -317,10 +350,69 @@ test.describe("Kestrel dashboard acceptance", () => {
     await expect(page.getByText("Product Designer", { exact: true })).toBeHidden();
 
     const job = page.getByRole("article").filter({ hasText: "Frontend Engineer" });
-    await job.getByRole("checkbox", { name: /applied/i }).check();
+    await job.getByRole("checkbox", { name: /applied/i }).click();
     await expect.poll(() => state.jobs[0]!.appliedAt).not.toBeNull();
     await page.getByRole("combobox", { name: "Applied" }).selectOption("true");
     await expect(page.getByText("Frontend Engineer", { exact: true })).toBeVisible();
+  });
+
+  test("dismisses, revisits, and restores a role", async ({ page }) => {
+    const state = await mockApi(page);
+    await unlock(page);
+
+    await page.getByRole("button", { name: "Not interested in Frontend Engineer" }).click();
+    await expect(page.getByRole("link", { name: "Frontend Engineer" })).toBeHidden();
+    await expect(page.getByRole("combobox", { name: "Interest" })).toBeFocused();
+    await expect.poll(() => state.jobs[0]!.notInterestedAt).not.toBeNull();
+
+    await page.reload();
+    await expect(page.getByRole("link", { name: "Frontend Engineer" })).toBeHidden();
+    await page.getByRole("combobox", { name: "Interest" }).selectOption("dismissed");
+    await expect(page.getByRole("link", { name: "Frontend Engineer" })).toBeVisible();
+    await expect
+      .poll(() =>
+        state.requests.some((request) => request.path === "/api/jobs?scope=all&interest=dismissed"),
+      )
+      .toBe(true);
+
+    await page.getByRole("button", { name: "Restore Frontend Engineer" }).click();
+    await expect(page.getByRole("link", { name: "Frontend Engineer" })).toBeHidden();
+    await expect.poll(() => state.jobs[0]!.notInterestedAt).toBeNull();
+    await page.getByRole("combobox", { name: "Interest" }).selectOption("current");
+    await expect(page.getByRole("link", { name: "Frontend Engineer" })).toBeVisible();
+  });
+
+  test("keeps applied and not-interested state mutually exclusive", async ({ page }) => {
+    const state = await mockApi(page);
+    state.jobs[0]!.appliedAt = "2026-07-11T09:00:00.000Z";
+    await unlock(page);
+
+    await page.getByRole("button", { name: "Not interested in Frontend Engineer" }).click();
+    await expect.poll(() => state.jobs[0]!.notInterestedAt).not.toBeNull();
+    expect(state.jobs[0]!.appliedAt).toBeNull();
+
+    await page.getByRole("combobox", { name: "Interest" }).selectOption("dismissed");
+    const job = page.getByRole("article").filter({ hasText: "Frontend Engineer" });
+    await job.getByRole("checkbox", { name: /applied/i }).click();
+    await expect(job).toBeHidden();
+    await expect.poll(() => state.jobs[0]!.appliedAt).not.toBeNull();
+    expect(state.jobs[0]!.notInterestedAt).toBeNull();
+  });
+
+  test("updates every visible posting for the same stable role", async ({ page }) => {
+    const state = await mockApi(page);
+    state.jobs.push({ ...state.jobs[0]!, id: "job-123-repost", sourceKey: "repost:123" });
+    await unlock(page);
+
+    await page.getByRole("button", { name: "Not interested in Frontend Engineer" }).first().click();
+
+    await expect(page.getByRole("link", { name: "Frontend Engineer" })).toHaveCount(0);
+    expect(state.jobs.filter((job) => job.stableKey === stableKey)).toHaveLength(2);
+    expect(
+      state.jobs
+        .filter((job) => job.stableKey === stableKey)
+        .every((job) => job.notInterestedAt !== null),
+    ).toBe(true);
   });
 
   test("edits and saves matching criteria", async ({ page }) => {

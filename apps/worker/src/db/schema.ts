@@ -48,11 +48,13 @@ export const roleLedger = sqliteTable(
     lastSourceKey: text("last_source_key").notNull(),
     repostCount: integer("repost_count").notNull().default(0),
     appliedAt: text("applied_at"),
+    notInterestedAt: text("not_interested_at"),
   },
   (table) => [
     check("role_ledger_repost_count_check", sql`${table.repostCount} >= 0`),
     index("role_ledger_company_idx").on(table.companyId),
     index("role_ledger_applied_idx").on(table.appliedAt),
+    index("role_ledger_not_interested_idx").on(table.notInterestedAt),
   ],
 );
 
