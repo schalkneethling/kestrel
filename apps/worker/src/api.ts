@@ -193,7 +193,9 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
       if (method === "GET") return json({ companies: await repository.listCompanies() });
       if (method === "POST") {
         const company = companyFrom(await body(request));
-        await repository.saveCompany(company);
+        if (!(await repository.createCompany(company))) {
+          return error(409, "A company with this ATS platform and board token already exists");
+        }
         return json({ company }, { status: 201 });
       }
     }

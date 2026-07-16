@@ -86,6 +86,7 @@ export type PollRun = {
 export interface PersistencePort {
   listCompanies(): Promise<Company[]>;
   findCompany(id: string): Promise<Company | null>;
+  createCompany(company: Company): Promise<boolean>;
   saveCompany(company: Company): Promise<void>;
   deleteCompany(id: string): Promise<"deleted" | "not_found" | "conflict">;
   listJobs(companyId?: string): Promise<PersistedJob[]>;

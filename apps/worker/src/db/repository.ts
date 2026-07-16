@@ -55,6 +55,15 @@ export class D1Repository implements PersistencePort {
     const row = await this.#db.select().from(companies).where(eq(companies.id, id)).get();
     return row ? toCompany(row) : null;
   }
+  async createCompany(company: Company): Promise<boolean> {
+    const now = this.#now();
+    const created = await this.#db
+      .insert(companies)
+      .values({ ...company, createdAt: now, updatedAt: now })
+      .onConflictDoNothing()
+      .returning({ id: companies.id });
+    return created.length > 0;
+  }
   async saveCompany(company: Company): Promise<void> {
     const now = this.#now();
     await this.#db

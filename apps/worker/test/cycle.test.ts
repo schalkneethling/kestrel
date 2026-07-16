@@ -24,6 +24,7 @@ function persistence(overrides: Partial<PersistencePort> = {}) {
   const port: PersistencePort = {
     listCompanies: async () => [companyFixture],
     findCompany: async () => null,
+    createCompany: async () => true,
     saveCompany: async () => undefined,
     deleteCompany: async () => "not_found",
     listJobs: async () => [jobFixture],

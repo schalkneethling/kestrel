@@ -58,6 +58,19 @@ describe("D1Repository", () => {
     expect(await repository.deleteCompany(companyFixture.id)).toBe("not_found");
   });
 
+  it("reports duplicate ATS board identities without replacing the existing company", async () => {
+    const repository = new D1Repository(env.DB);
+    expect(await repository.createCompany(companyFixture)).toBe(true);
+    expect(
+      await repository.createCompany({
+        ...companyFixture,
+        id: "duplicate-company",
+        name: "Duplicate Acme",
+      }),
+    ).toBe(false);
+    expect(await repository.listCompanies()).toEqual([companyFixture]);
+  });
+
   it("reports a conflict when durable role history prevents company deletion", async () => {
     const repository = new D1Repository(env.DB);
     await repository.saveCompany(companyFixture);
