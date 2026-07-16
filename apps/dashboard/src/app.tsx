@@ -218,11 +218,13 @@ function TokenGate({
 function AddCompanyDialog({ onSave }: { onSave: (company: Omit<Company, "id">) => Promise<void> }) {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
     const atsType = formString(data, "atsType") as Company["atsType"];
+    setSaveError("");
     setSaving(true);
     try {
       await onSave({
@@ -235,13 +237,21 @@ function AddCompanyDialog({ onSave }: { onSave: (company: Omit<Company, "id">) =
         notes: null,
       });
       setOpen(false);
+    } catch (cause) {
+      setSaveError(cause instanceof Error ? cause.message : "Could not add this company.");
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        setOpen(nextOpen);
+        if (!nextOpen) setSaveError("");
+      }}
+    >
       <DialogTrigger asChild>
         <Button>
           <Building2 className="size-4" />
@@ -256,6 +266,14 @@ function AddCompanyDialog({ onSave }: { onSave: (company: Omit<Company, "id">) =
             Connect an ATS board or add an unsupported company to the manual watchlist.
           </DialogDescription>
         </div>
+        {saveError ? (
+          <p
+            role="alert"
+            className="rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-900"
+          >
+            {saveError}
+          </p>
+        ) : null}
         <form className="grid gap-4" onSubmit={submit}>
           <Field id="company-name" label="Company name">
             <Input id="company-name" name="name" required />

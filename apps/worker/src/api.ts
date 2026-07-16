@@ -193,7 +193,11 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
       if (method === "GET") return json({ companies: await repository.listCompanies() });
       if (method === "POST") {
         const company = companyFrom(await body(request));
-        await repository.saveCompany(company);
+        const result = await repository.createCompany(company);
+        if (result === "duplicate_ats_board") {
+          return error(409, "A company with this ATS platform and board token already exists");
+        }
+        if (result === "duplicate_id") return error(409, "A company with this id already exists");
         return json({ company }, { status: 201 });
       }
     }

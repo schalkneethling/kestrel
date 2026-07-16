@@ -82,6 +82,7 @@ const criteria = {
 type MockState = {
   acceptsToken: boolean;
   companies: Array<Record<string, unknown>>;
+  nextCompanyId: string;
   criteria: Array<Record<string, unknown>>;
   jobs: Array<Record<string, unknown>>;
   jobsStatus: number;
@@ -101,6 +102,7 @@ async function mockApi(page: Page) {
   const state: MockState = {
     acceptsToken: true,
     companies: [company, unsupportedCompany],
+    nextCompanyId: "company-new",
     criteria: [criteria],
     jobs: jobs.map((job) => ({ ...job })),
     jobsStatus: 200,
@@ -128,7 +130,22 @@ async function mockApi(page: Page) {
       return json(route, 200, { companies: state.companies });
     }
     if (url.pathname === "/api/companies" && method === "POST") {
-      const created = { ...(body as object), id: "company-new" };
+      const input = body as Record<string, unknown>;
+      const duplicate = state.companies.some(
+        (item) =>
+          input.boardToken !== null &&
+          item.atsType === input.atsType &&
+          item.boardToken === input.boardToken,
+      );
+      if (duplicate) {
+        return json(route, 409, {
+          error: "A company with this ATS platform and board token already exists",
+        });
+      }
+      const created = { ...(body as object), id: state.nextCompanyId };
+      if (state.companies.some((item) => item.id === created.id)) {
+        return json(route, 409, { error: "A company with this id already exists" });
+      }
       state.companies.push(created);
       return json(route, 201, { company: created });
     }
@@ -329,6 +346,48 @@ test.describe("Kestrel dashboard acceptance", () => {
     await page.getByLabel(/careers url/i).fill("https://example.com/jobs");
     await page.getByRole("button", { name: /save company/i }).click();
     await expect(page.getByText("Example Labs", { exact: true })).toBeVisible();
+  });
+
+  test("keeps the company dialog open and explains duplicate ATS boards", async ({ page }) => {
+    await mockApi(page);
+    await unlock(page);
+    await page.getByRole("link", { name: "Companies" }).click();
+    await page.getByRole("button", { name: /add company/i }).click();
+    await page.getByLabel(/company name/i).fill("Acme duplicate");
+    await page.getByLabel(/ats platform/i).selectOption("greenhouse");
+    await page.getByLabel(/board token/i).fill("acme");
+    await page.getByLabel(/careers url/i).fill("https://example.com/duplicate");
+    await page.getByRole("button", { name: /save company/i }).click();
+
+    await expect(page.getByRole("alert")).toContainText(
+      /company with this ATS platform and board token already exists/i,
+    );
+    await expect(page.getByRole("dialog")).toBeVisible();
+    await expect(page.getByLabel(/company name/i)).toHaveValue("Acme duplicate");
+  });
+
+  test("reports a reused server-generated company id", async ({ page }) => {
+    const state = await mockApi(page);
+    state.nextCompanyId = company.id;
+    await unlock(page);
+    await page.getByRole("link", { name: "Companies" }).click();
+    await page.getByRole("button", { name: /add company/i }).click();
+    await page.getByLabel(/company name/i).fill("Different company");
+    await page.getByLabel(/ats platform/i).selectOption("lever");
+    await page.getByLabel(/board token/i).fill("different-board");
+    await page.getByLabel(/careers url/i).fill("https://example.com/different");
+    await page.getByRole("button", { name: /save company/i }).click();
+
+    await expect(page.getByRole("alert")).toContainText(/company with this id already exists/i);
+    const request = state.requests.find(
+      (item) => item.method === "POST" && item.path === "/api/companies",
+    );
+    expect(request?.body).toMatchObject({
+      name: "Different company",
+      atsType: "lever",
+      boardToken: "different-board",
+    });
+    expect(request?.body).not.toHaveProperty("id");
   });
 
   test("filters the jobs feed and persists applied state", async ({ page }) => {

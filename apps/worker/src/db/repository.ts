@@ -1,5 +1,6 @@
 import type {
   Company,
+  CreateCompanyResult,
   Criteria,
   Notification,
   PersistedJob,
@@ -54,6 +55,20 @@ export class D1Repository implements PersistencePort {
   async findCompany(id: string): Promise<Company | null> {
     const row = await this.#db.select().from(companies).where(eq(companies.id, id)).get();
     return row ? toCompany(row) : null;
+  }
+  async createCompany(company: Company): Promise<CreateCompanyResult> {
+    const now = this.#now();
+    try {
+      const created = await this.#db
+        .insert(companies)
+        .values({ ...company, createdAt: now, updatedAt: now })
+        .onConflictDoNothing({ target: [companies.atsType, companies.boardToken] })
+        .returning({ id: companies.id });
+      return created.length > 0 ? "created" : "duplicate_ats_board";
+    } catch (cause) {
+      if (await this.findCompany(company.id)) return "duplicate_id";
+      throw cause;
+    }
   }
   async saveCompany(company: Company): Promise<void> {
     const now = this.#now();

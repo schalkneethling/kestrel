@@ -135,6 +135,41 @@ describe("company API", () => {
     });
   });
 
+  it("returns a conflict when the ATS board identity already exists", async () => {
+    await seedCompany();
+
+    const response = await api("/api/companies", {
+      method: "POST",
+      body: json({ ...companyFixture, id: "duplicate-company", name: "Duplicate Acme" }),
+    });
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({
+      error: "A company with this ATS platform and board token already exists",
+    });
+    await expect(api("/api/companies").then((result) => result.json())).resolves.toEqual({
+      companies: [companyFixture],
+    });
+  });
+
+  it("reports a reused company id separately from an ATS board conflict", async () => {
+    await seedCompany();
+
+    const response = await api("/api/companies", {
+      method: "POST",
+      body: json({
+        ...companyFixture,
+        atsType: "lever",
+        boardToken: "different-board",
+      }),
+    });
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({
+      error: "A company with this id already exists",
+    });
+  });
+
   it("returns a conflict when durable role history prevents deletion", async () => {
     await seedJob();
 
